@@ -351,16 +351,6 @@ img { display: block; }
   animation: fadeIn .25s ease;
 }
 
-/* Leaderboard source badge */
-.lb-source-wrap { text-align:center; margin-bottom:10px; }
-.lb-source-badge {
-  display: inline-flex; align-items:center; gap:5px;
-  font-size:.75rem; padding:3px 11px; border-radius:100px;
-  border:1px solid; font-weight:600; letter-spacing:.3px;
-}
-.lb-source-badge.cloud  { color:#27ae60; border-color:rgba(39,174,96,.35); background:rgba(39,174,96,.08); }
-.lb-source-badge.local  { color:var(--muted); border-color:rgba(255,255,255,.12); background:transparent; }
-.lb-source-badge.loading { color:var(--muted); border-color:rgba(255,255,255,.1); background:transparent; }
 
 /* Admin delete (hidden, revealed by secret) */
 .btn-admin-lb {
@@ -716,7 +706,6 @@ img { display: block; }
   <div class="modal-card">
     <button class="modal-close" onclick="closeModal('modal-leaderboard')">✕</button>
     <div class="modal-title" id="lb-modal-title" onclick="lbTitleClick()">🏆 טבלת כל השחקנים</div>
-    <div class="lb-source-wrap"><span id="lb-source-badge" class="lb-source-badge loading">⏳ טוען...</span></div>
     <div id="lb-table-wrap"><!-- filled by JS --></div>
     <button class="btn-admin-lb" id="btn-admin-lb" onclick="adminClearLeaderboard()">🗑️ מחק טבלה (מנהל)</button>
   </div>
@@ -1032,18 +1021,6 @@ async function getLeaderboard() {
   catch(e) { return []; }
 }
 
-function updateLbSourceBadge() {
-  const badge = el('lb-source-badge');
-  if (!badge) return;
-  const map = {
-    server:  { cls:'cloud',  text:'🟢 ענן - תוצאות משותפות לכולם' },
-    local:   { cls:'local',  text:'💾 מקומי - תוצאות רק במכשיר זה' },
-    loading: { cls:'loading',text:'⏳ טוען...' },
-  };
-  const s = map[G_lbSource] || map.loading;
-  badge.className = 'lb-source-badge ' + s.cls;
-  badge.textContent = s.text;
-}
 
 async function addToLeaderboard(name, score, date) {
   const entry = { name, score, date };
@@ -1153,9 +1130,7 @@ async function renderLeaderboardModal() {
   const wrap = el('lb-table-wrap');
   wrap.innerHTML = '<div class="lb-empty">⏳ טוען תוצאות...</div>';
   G_lbSource = 'loading';
-  updateLbSourceBadge();
   const lb = await getLeaderboard();
-  updateLbSourceBadge();
   if (!lb.length) {
     wrap.innerHTML = '<div class="lb-empty">🎮 עדיין אין שחקנים בטבלה.<br>היו הראשונים לשחק!</div>';
     return;
