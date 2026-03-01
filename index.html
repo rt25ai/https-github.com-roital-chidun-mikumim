@@ -869,14 +869,21 @@ function clearSavedGame() {
   localStorage.removeItem(LS_SAVE);
 }
 
-const API_LB = '/api/leaderboard';
+const API_LB      = '/api/leaderboard';
+const GITHUB_RAW  = 'https://raw.githubusercontent.com/rt25ai/https-github.com-roital-chidun-mikumim/main/scores.json';
 
 async function getLeaderboard() {
+  // 1. Try local server API (used during live/local events)
   try {
     const r = await fetch(API_LB);
     if (r.ok) return await r.json();
   } catch(e) {}
-  // Fallback to localStorage if server unreachable
+  // 2. Try GitHub raw (used when visiting via GitHub Pages / custom domain)
+  try {
+    const r = await fetch(GITHUB_RAW + '?t=' + Date.now());
+    if (r.ok) return await r.json();
+  } catch(e) {}
+  // 3. Final fallback: localStorage
   try { return JSON.parse(localStorage.getItem(LS_LB)) || []; }
   catch(e) { return []; }
 }
