@@ -882,7 +882,7 @@ const RAW = [
 ];
 
 const CENTER = [31.630, 34.669];
-const TMAX   = 45;
+const TMAX   = 75;
 const MPQMAX = 1000;
 const TQ     = RAW.length; // 33
 const _imgCache = []; // holds Image refs to prevent GC cancelling preloads
@@ -1279,7 +1279,7 @@ function updateTimer(t) {
   arc.style.strokeDasharray  = CIRC;
   arc.style.strokeDashoffset = off;
   el('tval').textContent = t;
-  el('tring').className = 'tring ' + (t>20?'green':t>10?'yellow':'red');
+  el('tring').className = 'tring ' + (t>30?'green':t>15?'yellow':'red');
 }
 
 /* ─── Hint types (3 different hints, each costs points) ─── */
