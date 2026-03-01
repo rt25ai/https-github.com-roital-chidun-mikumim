@@ -377,19 +377,26 @@ img { display: block; }
 .exit-icon { font-size: 3rem; margin-bottom: 12px; }
 .exit-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 8px; }
 .exit-sub { font-size: .9rem; color: var(--muted); margin-bottom: 24px; line-height: 1.6; }
-.exit-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.exit-btns { display: flex; flex-direction: column; gap: 10px; }
+.btn-exit-finish {
+  width: 100%; padding: 15px 20px; border-radius: 14px;
+  background: linear-gradient(135deg, #f0a800, #e56b00);
+  color: #fff; font-size: 1.05rem; font-weight: 800; transition: var(--t);
+  box-shadow: 0 4px 20px rgba(240,168,0,.3);
+}
+.btn-exit-finish:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(240,168,0,.45); filter: brightness(1.08); }
 .btn-exit-confirm {
-  padding: 12px 26px; border-radius: 100px;
+  width: 100%; padding: 13px 20px; border-radius: 14px;
   background: linear-gradient(135deg, var(--green), #1e8449);
-  color: #fff; font-size: 1rem; font-weight: 700; transition: var(--t);
+  color: #fff; font-size: .95rem; font-weight: 700; transition: var(--t);
 }
 .btn-exit-confirm:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(39,174,96,.4); }
 .btn-exit-cancel {
-  padding: 12px 26px; border-radius: 100px;
-  background: var(--glass2); border: 1px solid var(--border);
-  color: var(--white); font-size: 1rem; font-weight: 700; transition: var(--t);
+  width: 100%; padding: 11px 20px; border-radius: 14px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--muted); font-size: .9rem; font-weight: 600; transition: var(--t);
 }
-.btn-exit-cancel:hover { background: rgba(255,255,255,.15); }
+.btn-exit-cancel:hover { background: var(--glass); color: var(--white); }
 
 /* ════════════════════════════════════════════════════════════
    ███ QUESTION SCREEN
@@ -720,15 +727,13 @@ img { display: block; }
      ══════════════════════════════════════════════════════════ -->
 <div class="modal" id="modal-exit" onclick="closeModalBg(event,'modal-exit')">
   <div class="modal-card exit-modal-card" style="max-width:400px">
-    <div class="exit-icon">💾</div>
+    <div class="exit-icon">🚪</div>
     <div class="exit-title">לצאת מהמשחק?</div>
-    <div class="exit-sub">
-      ההתקדמות שלכם תישמר אוטומטית.<br>
-      תוכלו להמשיך מאותה שאלה בחזרה לדף הבית.
-    </div>
+    <div class="exit-sub" id="exit-sub-text"></div>
     <div class="exit-btns">
-      <button class="btn-exit-cancel" onclick="closeModal('modal-exit')">← המשיכו לשחק</button>
-      <button class="btn-exit-confirm" onclick="exitAndSave()">💾 שמור וצא</button>
+      <button class="btn-exit-finish" onclick="endGameNow()">🏆 סיים וקבל ניקוד עכשיו</button>
+      <button class="btn-exit-confirm" onclick="exitAndSave()">💾 שמור וצא - אמשיך אחר כך</button>
+      <button class="btn-exit-cancel" onclick="closeModal('modal-exit')">← המשך לשחק</button>
     </div>
   </div>
 </div>
@@ -1208,7 +1213,16 @@ function exitAndSave() {
   clearInterval(G.tInt);
   showScreen('screen-home');
   initHome();
-  toast('💾 המשחק נשמר!');
+  toast('💾 המשחק נשמר - תוכל להמשיך מאוחר יותר');
+}
+
+function endGameNow() {
+  closeModal('modal-exit');
+  clearInterval(G.tInt);
+  clearSavedGame();
+  // Pad unanswered questions so showFinal() stats work correctly
+  while (G.scores.length < TQ) { G.scores.push(0); G.dists.push(99999); }
+  showFinal();
 }
 
 function loadQ(idx) {
@@ -1462,6 +1476,14 @@ function showScreen(id){
 
 function openModal(id){
   if(id==='modal-leaderboard') renderLeaderboardModal();
+  if(id==='modal-exit' && G) {
+    const answered = G.scores.length;
+    const sub = el('exit-sub-text');
+    if (sub) sub.innerHTML =
+      `ענית על <b style="color:var(--gold)">${answered}</b> מתוך <b>${TQ}</b> שאלות.<br>` +
+      `ניקוד נוכחי: <b style="color:var(--gold)">${G.total.toLocaleString()}</b> נקודות.<br><br>` +
+      `<span style="font-size:.82rem">סיום עכשיו ישמור את הניקוד בטבלת השיאים.<br>שמירה תאפשר לך להמשיך בפעם הבאה.</span>`;
+  }
   el(id).classList.add('open');
 }
 function closeModal(id){ el(id).classList.remove('open'); }
