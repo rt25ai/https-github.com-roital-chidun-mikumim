@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🌟 חידון מיקומים – כוכב מיכאל</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+/* ════════════════════════════════════════════════════════════
+   ROOT & RESET
+   ════════════════════════════════════════════════════════════ */
+:root {
+  --gold:   #ffd045;
+  --amber:  #e8861a;
+  --green:  #27ae60;
+  --g2:     #2ecc71;
+  --blue:   #3498db;
+  --red:    #e74c3c;
+  --teal:   #00d4c8;
+  --bg:     #050d18;
+  --bg2:    #0a1428;
+  --glass:  rgba(255,255,255,.055);
+  --glass2: rgba(255,255,255,.10);
+  --border: rgba(255,255,255,.10);
+  --muted:  #7a90a8;
+  --white:  #e8f0f8;
+  --r:      15px;
+  --t:      .32s cubic-bezier(.4,0,.2,1);
+  --circ:   138.2;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  font-family: 'Heebo', sans-serif;
+  background: var(--bg); color: var(--white);
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: 'Heebo', sans-serif; cursor: pointer; border: none; }
+a { text-decoration: none; }
+img { display: block; }
+
+/* ════════════════════════════════════════════════════════════
+   AURORA BACKGROUND
+   ════════════════════════════════════════════════════════════ */
+@keyframes aurora { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(60px,-40px) scale(1.15)} 66%{transform:translate(-40px,30px) scale(.95)} 100%{transform:translate(0,0) scale(1)} }
+.aurora-blob { position:fixed; border-radius:50%; filter:blur(120px); pointer-events:none; z-index:0; animation:aurora var(--dur,12s) ease-in-out infinite; }
+@keyframes twinkle { 0%,100%{opacity:.15} 50%{opacity:.9} }
+.star { position:fixed; background:#fff; border-radius:50%; pointer-events:none; z-index:0; animation:twinkle var(--d,3s) ease-in-out infinite; animation-delay:var(--delay,0s); }
+
+/* ════════════════════════════════════════════════════════════
+   SCREENS
+   ════════════════════════════════════════════════════════════ */
+.screen {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  opacity: 0; pointer-events: none;
+  transition: opacity .4s ease, transform .4s ease;
+  transform: scale(.98); z-index: 2;
+}
+.screen.active { opacity: 1; pointer-events: all; transform: scale(1); }
+
+/* ════════════════════════════════════════════════════════════
+   MODALS
+   ════════════════════════════════════════════════════════════ */
+.modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,.8);
+  backdrop-filter: blur(8px); display: flex; align-items: center;
+  justify-content: center; z-index: 200;
+  opacity: 0; pointer-events: none; transition: opacity .3s ease;
+}
+.modal.open { opacity: 1; pointer-events: all; }
+.modal-card {
+  background: #0c1a2c; border: 1px solid rgba(255,208,69,.2);
+  border-radius: 22px; padding: 32px; max-width: 580px; width: 92%;
+  max-height: 88vh; overflow-y: auto; position: relative;
+  box-shadow: 0 24px 80px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.06);
+  transform: translateY(24px); transition: transform .3s ease;
+}
+.modal.open .modal-card { transform: translateY(0); }
+.modal-close {
+  position: absolute; top: 16px; left: 16px; width: 32px; height: 32px;
+  background: rgba(255,255,255,.08); border: 1px solid var(--border);
+  border-radius: 50%; color: var(--muted); font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: var(--t); cursor: pointer;
+}
+.modal-close:hover { background: rgba(255,255,255,.15); color: var(--white); }
+.modal-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 20px; text-align: center; }
+
+/* ════════════════════════════════════════════════════════════
+   ███ HOME SCREEN
+   ════════════════════════════════════════════════════════════ */
+#screen-home {
+  align-items: center; justify-content: flex-start;
+  overflow-y: auto; padding: 24px 16px 32px;
+  background: transparent;
+}
+.home-inner {
+  position: relative; z-index: 3; width: 100%;
+  max-width: 680px; margin: 0 auto; display: flex;
+  flex-direction: column; align-items: center; gap: 18px;
+}
+
+/* Brand section */
+.brand-section { text-align: center; }
+.logo-wrap {
+  width: 130px; height: 130px; margin: 0 auto 16px;
+  position: relative;
+}
+.logo-wrap img.logo-img {
+  width: 100%; height: 100%; object-fit: contain; border-radius: 18px;
+  filter: drop-shadow(0 0 30px rgba(0,212,200,.45));
+}
+/* CSS fallback logo */
+.logo-fallback {
+  width: 130px; height: 130px; background: #000;
+  border-radius: 18px; border: 2px solid rgba(0,212,200,.4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.4rem; font-weight: 900; letter-spacing: -2px;
+  color: var(--teal); filter: drop-shadow(0 0 20px rgba(0,212,200,.5));
+  font-family: 'Heebo', sans-serif;
+}
+.logo-fallback .lf7 { color: #00ffee; }
+
+.game-title {
+  font-size: clamp(2rem, 6vw, 3.2rem); font-weight: 900; line-height: 1.05;
+  background: linear-gradient(125deg, #FFD700 0%, #FF9500 50%, #FF4500 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; filter: drop-shadow(0 0 20px rgba(255,180,0,.3));
+}
+.game-subtitle { font-size: 1.1rem; color: var(--muted); margin-top: 3px; }
+.brand-slogan {
+  font-size: .88rem; color: var(--teal); margin-top: 8px;
+  letter-spacing: .5px; font-weight: 500;
+  opacity: .85;
+}
+
+/* Name input on home */
+.home-name-row { width: 100%; }
+.home-name-row label { display: block; text-align: center; font-size: .85rem; color: var(--muted); margin-bottom: 8px; }
+.home-name-input {
+  display: block; width: 100%; max-width: 300px; margin: 0 auto;
+  padding: 13px 20px; border-radius: 100px;
+  border: 2px solid var(--border); background: var(--glass);
+  color: var(--white); font-size: 1rem; font-family: 'Heebo', sans-serif;
+  text-align: center; outline: none; backdrop-filter: blur(8px);
+  transition: border-color .25s, background .25s;
+}
+.home-name-input::placeholder { color: var(--muted); }
+.home-name-input:focus { border-color: var(--gold); background: rgba(255,208,69,.07); }
+
+/* Mini leaderboard top 3 */
+.home-top3 {
+  width: 100%; background: var(--glass); border: 1px solid var(--border);
+  border-radius: 18px; padding: 18px 20px; backdrop-filter: blur(10px);
+}
+.top3-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.top3-header .t3title { font-size: 1rem; font-weight: 700; }
+.top3-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 12px; margin-bottom: 6px;
+  background: rgba(255,255,255,.04); border: 1px solid transparent;
+  transition: var(--t);
+}
+.top3-item:last-child { margin-bottom: 0; }
+.top3-item.gold   { border-color: rgba(255,215,0,.25); background: rgba(255,215,0,.06); }
+.top3-item.silver { border-color: rgba(200,200,200,.2); }
+.top3-item.bronze { border-color: rgba(205,127,50,.2); }
+.top3-medal { font-size: 1.5rem; flex-shrink: 0; }
+.top3-name { flex: 1; font-weight: 600; font-size: .95rem; }
+.top3-score { font-size: 1rem; font-weight: 900; color: var(--gold); }
+.top3-pct { font-size: .75rem; color: var(--muted); margin-right: 6px; }
+.top3-empty { text-align: center; color: var(--muted); font-size: .9rem; padding: 8px 0; }
+
+/* Continue button */
+.btn-continue {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; width: 100%; padding: 14px 20px; border-radius: 14px;
+  background: linear-gradient(135deg, #1a4a6e, #0d2a42);
+  border: 2px solid rgba(52,152,219,.45); color: var(--white);
+  font-size: 1rem; font-weight: 700; transition: var(--t);
+}
+.btn-continue:hover { border-color: var(--blue); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(52,152,219,.3); }
+.cont-info { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+
+/* Main action buttons */
+.home-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+.btn-newgame {
+  padding: 16px 10px; border-radius: 14px;
+  background: linear-gradient(135deg, #f0a800, #e56b00);
+  color: #fff; font-size: 1.1rem; font-weight: 800; transition: var(--t);
+  box-shadow: 0 4px 20px rgba(240,168,0,.35);
+}
+.btn-newgame:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(240,168,0,.55); }
+.btn-instructions {
+  padding: 16px 10px; border-radius: 14px;
+  background: var(--glass2); border: 1px solid var(--border);
+  color: var(--white); font-size: 1.05rem; font-weight: 700; transition: var(--t);
+}
+.btn-instructions:hover { background: rgba(255,255,255,.15); transform: translateY(-2px); }
+.btn-lb-full {
+  width: 100%; padding: 13px 20px; border-radius: 14px;
+  background: var(--glass); border: 1px solid rgba(255,208,69,.2);
+  color: var(--gold); font-size: .95rem; font-weight: 700; transition: var(--t);
+}
+.btn-lb-full:hover { background: rgba(255,208,69,.1); transform: translateY(-2px); }
+
+/* Social links */
+.social-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.social-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: 100px;
+  border: 1px solid var(--border); background: var(--glass);
+  color: var(--muted); font-size: .85rem; font-weight: 600;
+  transition: var(--t); backdrop-filter: blur(6px);
+}
+.social-btn:hover { border-color: rgba(255,255,255,.3); color: var(--white); transform: translateY(-2px); }
+.social-btn.insta:hover { border-color: #e1306c; color: #e1306c; }
+.social-btn.web:hover { border-color: var(--teal); color: var(--teal); }
+
+/* ════════════════════════════════════════════════════════════
+   INSTRUCTIONS MODAL CONTENT
+   ════════════════════════════════════════════════════════════ */
+.instr-block { margin-bottom: 20px; }
+.instr-block h3 { font-size: 1rem; color: var(--gold); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.instr-block p, .instr-block li { font-size: .9rem; color: var(--muted); line-height: 1.7; }
+.instr-block ul { list-style: none; padding: 0; }
+.instr-block li { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+.instr-block li::before { content: ''; flex-shrink: 0; }
+.score-table { width: 100%; border-collapse: collapse; font-size: .88rem; margin-top: 8px; }
+.score-table th { background: rgba(255,208,69,.1); color: var(--gold); padding: 7px 10px; text-align: right; font-weight: 700; border-radius: 4px; }
+.score-table td { padding: 7px 10px; color: var(--muted); border-bottom: 1px solid rgba(255,255,255,.05); }
+.score-table tr:last-child td { border-bottom: none; }
+
+/* ════════════════════════════════════════════════════════════
+   LEADERBOARD MODAL CONTENT
+   ════════════════════════════════════════════════════════════ */
+.lb-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.lb-table th { background: rgba(255,208,69,.08); color: var(--gold); padding: 8px 10px; text-align: right; font-weight: 700; border-bottom: 1px solid rgba(255,208,69,.2); }
+.lb-table td { padding: 9px 10px; color: var(--white); border-bottom: 1px solid rgba(255,255,255,.05); }
+.lb-table tr:last-child td { border-bottom: none; }
+.lb-table tr:hover td { background: rgba(255,255,255,.03); }
+.lb-rank { font-weight: 900; text-align: center; font-size: 1rem; }
+.lb-rank.r1 { color: #FFD700; }
+.lb-rank.r2 { color: #C0C0C0; }
+.lb-rank.r3 { color: #CD7F32; }
+.lb-empty { text-align: center; color: var(--muted); padding: 30px 20px; font-size: .95rem; }
+.btn-clear-lb {
+  display: block; margin: 16px auto 0; padding: 8px 20px; border-radius: 100px;
+  background: transparent; border: 1px solid rgba(231,76,60,.4); color: var(--red);
+  font-size: .82rem; transition: var(--t);
+}
+.btn-clear-lb:hover { background: rgba(231,76,60,.1); }
+
+/* ════════════════════════════════════════════════════════════
+   EXIT CONFIRM MODAL
+   ════════════════════════════════════════════════════════════ */
+.exit-modal-card { text-align: center; }
+.exit-icon { font-size: 3rem; margin-bottom: 12px; }
+.exit-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 8px; }
+.exit-sub { font-size: .9rem; color: var(--muted); margin-bottom: 24px; line-height: 1.6; }
+.exit-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn-exit-confirm {
+  padding: 12px 26px; border-radius: 100px;
+  background: linear-gradient(135deg, var(--green), #1e8449);
+  color: #fff; font-size: 1rem; font-weight: 700; transition: var(--t);
+}
+.btn-exit-confirm:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(39,174,96,.4); }
+.btn-exit-cancel {
+  padding: 12px 26px; border-radius: 100px;
+  background: var(--glass2); border: 1px solid var(--border);
+  color: var(--white); font-size: 1rem; font-weight: 700; transition: var(--t);
+}
+.btn-exit-cancel:hover { background: rgba(255,255,255,.15); }
+
+/* ════════════════════════════════════════════════════════════
+   ███ QUESTION SCREEN
+   ════════════════════════════════════════════════════════════ */
+#screen-question { display: grid; grid-template-rows: auto 1fr auto; background: var(--bg2); }
+
+.qhdr {
+  display: grid; grid-template-columns: auto 1fr auto;
+  align-items: center; padding: 9px 16px; gap: 10px;
+  background: rgba(5,13,24,.85); backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border); position: relative; z-index: 10;
+}
+.hd-l { display: flex; align-items: center; gap: 10px; }
+.hd-c { text-align: center; flex: 1; }
+.hd-r { display: flex; align-items: center; gap: 10px; }
+
+/* Exit button */
+.btn-exit-game {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 13px; border-radius: 100px;
+  border: 1px solid rgba(231,76,60,.35); background: rgba(231,76,60,.08);
+  color: rgba(231,76,60,.9); font-size: .82rem; font-weight: 700; transition: var(--t);
+}
+.btn-exit-game:hover { border-color: var(--red); background: rgba(231,76,60,.18); color: var(--red); }
+
+/* Score */
+.score-box .sv {
+  font-size: 1.4rem; font-weight: 900; color: var(--gold);
+  text-shadow: 0 0 20px rgba(255,208,69,.5); transition: transform .2s;
+}
+.score-box .sl { font-size: .67rem; color: var(--muted); }
+.score-box.bump .sv { animation: scoreBump .3s ease; }
+@keyframes scoreBump { 0%,100%{transform:scale(1)} 50%{transform:scale(1.28)} }
+
+.qctr { font-size: .9rem; color: var(--muted); }
+.qctr b { font-size: 1.05rem; color: var(--white); font-weight: 800; }
+
+/* Timer ring */
+.tring { position: relative; width: 56px; height: 56px; flex-shrink: 0; }
+.tring svg { transform: rotate(-90deg); width: 56px; height: 56px; }
+.tring circle { fill: none; stroke-width: 4.5; }
+.t-bg  { stroke: rgba(255,255,255,.1); }
+.t-arc { stroke-linecap: round; stroke-dasharray: var(--circ); stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear, stroke .4s; }
+.t-val { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: .9rem; font-weight: 900; }
+.tring.green .t-arc  { stroke: var(--g2); }
+.tring.yellow .t-arc { stroke: var(--gold); }
+.tring.red .t-arc    { stroke: var(--red); }
+.tring.red .t-val    { color: var(--red); animation: redPulse .5s ease infinite; }
+@keyframes redPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.18)} }
+
+/* Hint */
+.hbtn { display:flex; align-items:center; gap:6px; padding:7px 13px; border-radius:100px; border:1px solid var(--border); background:var(--glass); color:var(--white); font-size:.83rem; transition:var(--t); }
+.hbtn:hover:not(:disabled) { border-color:orange; background:rgba(255,150,0,.15); }
+.hbtn:disabled { opacity:.3; cursor:not-allowed; }
+.hbadge { background:var(--amber); color:#fff; border-radius:50%; width:18px; height:18px; font-size:.7rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
+
+/* Game area */
+.garea { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; overflow: hidden; }
+.imgpanel { position: relative; background: #000; overflow: hidden; }
+.imgpanel img { width: 100%; height: 100%; object-fit: cover; }
+.imgpanel .loading-spin { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #0a0f1a; font-size: 2rem; transition: opacity .4s; }
+.imgpanel .loading-spin.gone { opacity: 0; pointer-events: none; }
+.img-corners::before,.img-corners::after { content:''; position:absolute; width:28px; height:28px; border-color:rgba(255,208,69,.55); border-style:solid; pointer-events:none; z-index:2; }
+.img-corners::before { top:10px; right:10px; border-width:2px 2px 0 0; border-radius:0 4px 0 0; }
+.img-corners::after  { bottom:10px; left:10px; border-width:0 0 2px 2px; border-radius:0 0 0 4px; }
+.img-caption { position:absolute; bottom:0; left:0; right:0; padding:14px 16px; background:linear-gradient(transparent,rgba(0,0,0,.85)); font-size:.84rem; color:rgba(255,255,255,.8); text-align:center; }
+.mappanel { position:relative; }
+#q-map { width:100%; height:100%; }
+.map-tip { position:absolute; top:12px; left:50%; transform:translateX(-50%); background:rgba(5,13,24,.82); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,.15); border-radius:100px; padding:7px 16px; font-size:.85rem; z-index:500; pointer-events:none; white-space:nowrap; animation:mapPulse 2.2s ease infinite; transition:opacity .3s; }
+.map-tip.hidden { opacity:0; animation:none; }
+@keyframes mapPulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+/* Footer */
+.qftr { display:flex; align-items:center; justify-content:space-between; padding:9px 16px; gap:10px; background:rgba(5,13,24,.85); backdrop-filter:blur(14px); border-top:1px solid var(--border); position:relative; z-index:10; }
+.gstatus { font-size:.88rem; color:var(--muted); display:flex; align-items:center; gap:6px; }
+.gstatus.placed { color:var(--blue); font-weight:700; }
+.btn-confirm { display:flex; align-items:center; gap:9px; padding:12px 26px; border-radius:100px; background:linear-gradient(135deg,var(--green),#1e8449); color:#fff; font-size:1rem; font-weight:700; box-shadow:0 4px 18px rgba(39,174,96,.4); transition:var(--t); }
+.btn-confirm:hover { transform:translateY(-2px); box-shadow:0 8px 26px rgba(39,174,96,.55); }
+.btn-confirm:disabled { background:#1e2a38; box-shadow:none; cursor:default; transform:none; opacity:.5; }
+
+/* ════════════════════════════════════════════════════════════
+   ███ REVEAL SCREEN
+   ════════════════════════════════════════════════════════════ */
+#screen-reveal { background:var(--bg2); overflow-y:auto; overflow-x:hidden; }
+.rev-inner { display:flex; flex-direction:column; min-height:100%; }
+.rev-banner { text-align:center; padding:20px 20px 10px; background:linear-gradient(180deg,rgba(0,0,0,.5) 0%,transparent 100%); }
+.rpop { font-size:3.4rem; font-weight:900; animation:popIn .5s cubic-bezier(.175,.885,.32,1.275) both; line-height:1; }
+@keyframes popIn { 0%{transform:scale(.15) rotate(-10deg);opacity:0} 70%{transform:scale(1.2) rotate(2deg)} 100%{transform:scale(1) rotate(0);opacity:1} }
+.rpop.great { color:var(--g2); text-shadow:0 0 30px rgba(46,204,113,.6); }
+.rpop.good  { color:var(--gold); text-shadow:0 0 30px rgba(255,208,69,.5); }
+.rpop.miss  { color:var(--muted); }
+.rverdict { font-size:1.35rem; font-weight:700; margin-top:4px; }
+.rdist    { font-size:.88rem; color:var(--muted); margin-top:4px; }
+
+.rev-imgs { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:0 14px; height:250px; flex-shrink:0; }
+.rcard { position:relative; border-radius:var(--r); overflow:hidden; background:#000; border:1px solid var(--border); }
+.rcard img { width:100%; height:100%; object-fit:cover; }
+.rlbl { position:absolute; top:9px; right:9px; padding:4px 11px; border-radius:100px; font-size:.74rem; font-weight:700; }
+.rlbl.q { background:rgba(52,152,219,.85); }
+.rlbl.a { background:rgba(46,204,113,.85); }
+.a-cover { position:absolute; inset:0; border-radius:var(--r); background:linear-gradient(135deg,#0d2035,#1a3a60); display:flex; align-items:center; justify-content:center; font-size:3rem; transition:opacity .7s ease .4s, transform .7s ease .4s; }
+.a-cover.reveal { opacity:0; transform:scale(1.1); pointer-events:none; }
+
+#r-map { height:210px; margin:10px 14px; border-radius:var(--r); overflow:hidden; border:1px solid var(--border); flex-shrink:0; }
+
+.dbar-wrap { margin:8px 14px; background:var(--glass); border:1px solid var(--border); border-radius:var(--r); padding:13px 16px; flex-shrink:0; }
+.dbar-lbl { display:flex; justify-content:space-between; font-size:.77rem; color:var(--muted); margin-bottom:7px; }
+.dbar-track { height:8px; background:rgba(255,255,255,.1); border-radius:4px; overflow:hidden; }
+.dbar-fill { height:100%; border-radius:4px; transition:width 1s cubic-bezier(.4,0,.2,1) .3s; }
+.dbar-fill.great { background:linear-gradient(90deg,var(--g2),var(--green)); }
+.dbar-fill.good  { background:linear-gradient(90deg,var(--gold),var(--amber)); }
+.dbar-fill.miss  { background:linear-gradient(90deg,var(--red),#c0392b); }
+
+.rev-ftr { display:flex; align-items:center; justify-content:space-between; padding:13px 18px 16px; border-top:1px solid var(--border); margin-top:auto; background:rgba(5,13,24,.6); }
+.prog-wrap { flex:1; margin-left:18px; }
+.prog-row { display:flex; justify-content:space-between; font-size:.77rem; color:var(--muted); margin-bottom:5px; }
+.prog-track { height:6px; background:rgba(255,255,255,.1); border-radius:3px; overflow:hidden; }
+.prog-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,var(--green),var(--g2)); transition:width .7s ease; }
+.btn-next { display:flex; align-items:center; gap:8px; padding:12px 24px; border-radius:100px; background:linear-gradient(135deg,var(--blue),#1a6fa0); color:#fff; font-size:1rem; font-weight:700; transition:var(--t); flex-shrink:0; }
+.btn-next:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(52,152,219,.45); }
+
+/* Score particles */
+.sparticle { position:fixed; pointer-events:none; z-index:9998; font-size:1.1rem; font-weight:900; color:var(--gold); animation:sparkUp .9s ease forwards; }
+@keyframes sparkUp { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-80px) scale(.5)} }
+
+/* ════════════════════════════════════════════════════════════
+   ███ FINAL SCREEN
+   ════════════════════════════════════════════════════════════ */
+#screen-final { align-items:center; justify-content:center; background:transparent; overflow-y:auto; padding:30px 20px; }
+.final-card { text-align:center; max-width:620px; width:100%; background:var(--glass); backdrop-filter:blur(20px); border:1px solid rgba(255,208,69,.18); border-radius:24px; padding:36px 28px; box-shadow:0 24px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.07); }
+.ftrophy { font-size:5rem; display:block; margin-bottom:10px; animation:trophyIn .9s cubic-bezier(.175,.885,.32,1.275) both; }
+@keyframes trophyIn { 0%{transform:translateY(-50px) scale(.4);opacity:0} 70%{transform:translateY(6px)} 100%{transform:translateY(0);opacity:1} }
+.fname   { font-size:1.3rem; color:var(--muted); margin-bottom:4px; }
+.fscore  { font-size:5rem; font-weight:900; color:var(--gold); line-height:1; text-shadow:0 0 40px rgba(255,208,69,.4); }
+.fmax    { font-size:.85rem; color:var(--muted); margin:4px 0 18px; }
+.fstars  { font-size:2.4rem; letter-spacing:5px; margin-bottom:16px; }
+.frank   { display:inline-block; border:1.5px solid rgba(255,208,69,.35); background:rgba(255,208,69,.09); border-radius:12px; padding:10px 22px; font-size:1.05rem; font-weight:700; color:var(--gold); margin-bottom:24px; }
+.fstats  { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:24px; }
+.fstat   { background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:12px; padding:14px 10px; }
+.fstat .sv { font-size:1.6rem; font-weight:900; }
+.fstat .sl { font-size:.7rem; color:var(--muted); margin-top:3px; }
+.final-btns { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+.btn-home { display:inline-flex; align-items:center; gap:10px; padding:13px 26px; border-radius:100px; background:var(--glass2); border:1px solid var(--border); color:var(--white); font-size:1rem; font-weight:700; transition:var(--t); }
+.btn-home:hover { background:rgba(255,255,255,.18); transform:translateY(-2px); }
+.btn-restart { display:inline-flex; align-items:center; gap:10px; padding:13px 26px; border-radius:100px; background:linear-gradient(135deg,#f0a800,#e56b00); color:#fff; font-size:1rem; font-weight:800; transition:var(--t); }
+.btn-restart:hover { transform:translateY(-3px); box-shadow:0 10px 30px rgba(240,165,0,.5); }
+
+/* Toast */
+.toast { position:fixed; top:74px; left:50%; transform:translateX(-50%); background:rgba(255,165,0,.95); color:#0a0a0a; padding:10px 22px; border-radius:100px; font-weight:700; font-size:.9rem; z-index:9000; animation:toastIn .28s ease; pointer-events:none; box-shadow:0 4px 18px rgba(255,165,0,.4); }
+@keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(-14px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+/* Confetti */
+.cf { position:fixed; pointer-events:none; z-index:9999; animation:cfFall linear forwards; }
+@keyframes cfFall { 0%{transform:translateY(-20px) rotate(0);opacity:1} 100%{transform:translateY(110vh) rotate(900deg);opacity:0} }
+
+/* Map ripple */
+.map-ripple { position:absolute; border-radius:50%; border:2px solid rgba(52,152,219,.7); animation:rippleOut .8s ease forwards; pointer-events:none; transform:translate(-50%,-50%); }
+@keyframes rippleOut { 0%{width:4px;height:4px;opacity:1} 100%{width:60px;height:60px;opacity:0} }
+
+/* Animations */
+@keyframes fadeDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeUp   { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes ping { 0%{transform:scale(1);opacity:1} 100%{transform:scale(2.5);opacity:0} }
+
+/* Mobile */
+@media (max-width:680px) {
+  .garea { grid-template-columns:1fr; grid-template-rows:50% 50%; }
+  .rev-imgs { height:170px; }
+  #r-map { height:165px; }
+  .fstats { grid-template-columns:repeat(2,1fr); }
+  .home-btns { grid-template-columns:1fr; }
+  .qhdr { padding:6px 10px; }
+}
+
+/* Leaflet overrides */
+.leaflet-control-attribution { font-size:8px!important; opacity:.4; }
+.leaflet-bar a { border-radius:8px!important; }
+</style>
+</head>
+<body>
+
+<!-- Aurora blobs -->
+<div class="aurora-blob" style="width:600px;height:600px;background:rgba(20,60,120,.35);top:-200px;right:-100px;--dur:14s;"></div>
+<div class="aurora-blob" style="width:500px;height:500px;background:rgba(70,20,100,.25);bottom:-150px;left:-120px;--dur:18s;animation-delay:-6s;"></div>
+<div class="aurora-blob" style="width:350px;height:350px;background:rgba(0,100,80,.2);top:40%;left:40%;--dur:11s;animation-delay:-3s;"></div>
+<div id="starfield"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     HOME SCREEN
+     ══════════════════════════════════════════════════════════ -->
+<div id="screen-home" class="screen active">
+  <div class="home-inner">
+
+    <!-- Brand -->
+    <div class="brand-section" style="margin-top:8px">
+      <div class="logo-wrap">
+        <img src="logo.png" class="logo-img"
+             onerror="this.style.display='none';document.getElementById('logofb').style.display='flex'">
+        <div class="logo-fallback" id="logofb" style="display:none">
+          R<span class="lf7">7</span>AI
+        </div>
+      </div>
+      <div class="game-title">חידון מיקומים</div>
+      <div class="game-subtitle">כוכב מיכאל</div>
+      <div class="brand-slogan">רועי טל — AI פשוט בעולם חכם</div>
+    </div>
+
+    <!-- Name input -->
+    <div class="home-name-row">
+      <label for="hpname">שם השחקן</label>
+      <input type="text" class="home-name-input" id="hpname"
+             placeholder="הכנסו את שמכם" maxlength="22" autocomplete="off">
+    </div>
+
+    <!-- Top 3 -->
+    <div class="home-top3">
+      <div class="top3-header">
+        <span class="t3title">🏆 טבלת המובילים</span>
+        <span style="font-size:.78rem;color:var(--muted)">מתוך 33,000</span>
+      </div>
+      <div id="top3-list">
+        <div class="top3-empty">עדיין אין שחקנים — היו הראשונים!</div>
+      </div>
+    </div>
+
+    <!-- Continue button (shown if saved game exists) -->
+    <div id="cont-wrap" style="display:none;width:100%">
+      <button class="btn-continue" onclick="continueGame()">
+        <div>
+          <div>▶ המשך משחק</div>
+          <div class="cont-info" id="cont-info"></div>
+        </div>
+      </button>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="home-btns" style="width:100%">
+      <button class="btn-newgame" onclick="newGame()">🎮 משחק חדש</button>
+      <button class="btn-instructions" onclick="openModal('modal-instructions')">📖 הוראות</button>
+    </div>
+
+    <button class="btn-lb-full" onclick="openModal('modal-leaderboard')">🏅 טבלה מלאה של כל השחקנים</button>
+
+    <!-- Social -->
+    <div class="social-row">
+      <a href="https://www.rt-ai.co.il" target="_blank" class="social-btn web">🌐 rt-ai.co.il</a>
+      <a href="https://www.instagram.com/roital_ai?igsh=bmVvY2RieWFhem4y" target="_blank" class="social-btn insta">📸 Instagram</a>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL: INSTRUCTIONS
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal" id="modal-instructions" onclick="closeModalBg(event,'modal-instructions')">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeModal('modal-instructions')">✕</button>
+    <div class="modal-title">📖 איך משחקים?</div>
+
+    <div class="instr-block">
+      <h3>🎯 מטרת המשחק</h3>
+      <p>מוצגת לכם תמונה שצולמה בכוכב מיכאל או בסביבתו. עליכם ללחוץ על המפה במקום שלפי דעתכם צולמה התמונה — ככל שמדויקים יותר, מרוויחים יותר נקודות!</p>
+    </div>
+
+    <div class="instr-block">
+      <h3>🗺️ שלבי המשחק</h3>
+      <ul>
+        <li>1️⃣ צפו בתמונה מימין</li>
+        <li>2️⃣ לחצו על מפת הלוויין כדי לסמן את הניחוש שלכם</li>
+        <li>3️⃣ לחצו "זה המיקום שלי!" לאישור — או המתינו לסיום הטיימר</li>
+        <li>4️⃣ ראו כמה הייתם קרובים וצברו נקודות</li>
+      </ul>
+    </div>
+
+    <div class="instr-block">
+      <h3>⏱️ זמן & רמזים</h3>
+      <ul>
+        <li>⏰ <b style="color:var(--white)">45 שניות</b> לכל שאלה — הטיימר מוצג בפינה הימנית</li>
+        <li>💡 <b style="color:var(--white)">3 רמזים</b> לכל המשחק — המפה תתקרב לאזור הנכון</li>
+        <li>⌨️ <b>קיצורי מקלדת:</b> Enter = אישור/הבא | H = רמז | F11 = מסך מלא</li>
+      </ul>
+    </div>
+
+    <div class="instr-block">
+      <h3>📊 טבלת ניקוד לפי מרחק</h3>
+      <table class="score-table">
+        <tr><th>מרחק</th><th>נקודות</th><th>דירוג</th></tr>
+        <tr><td>0–25 מ׳</td><td style="color:var(--g2);font-weight:700">1,000</td><td>🎯 מושלם</td></tr>
+        <tr><td>עד 100 מ׳</td><td style="color:var(--g2)">~750–999</td><td>⭐⭐⭐ מעולה</td></tr>
+        <tr><td>עד 300 מ׳</td><td style="color:var(--gold)">~350–750</td><td>⭐⭐ טוב</td></tr>
+        <tr><td>עד 700 מ׳</td><td style="color:var(--amber)">~50–350</td><td>⭐ סביר</td></tr>
+        <tr><td>מעל 1 ק"מ</td><td style="color:var(--muted)">0–30</td><td>😬 מנסים...</td></tr>
+      </table>
+    </div>
+
+    <div class="instr-block">
+      <h3>💾 שמירת משחק</h3>
+      <p>ניתן לצאת באמצע משחק בלחיצה על כפתור "יציאה" — המשחק יישמר ותוכלו להמשיך בהמשך מאותה שאלה.</p>
+    </div>
+
+    <button class="btn-newgame" style="width:100%;margin-top:8px;border-radius:14px" onclick="closeModal('modal-instructions'); newGame()">🎮 מוכנים — בואו נשחק!</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL: LEADERBOARD
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal" id="modal-leaderboard" onclick="closeModalBg(event,'modal-leaderboard')">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeModal('modal-leaderboard')">✕</button>
+    <div class="modal-title">🏆 טבלת כל השחקנים</div>
+    <div id="lb-table-wrap"><!-- filled by JS --></div>
+    <button class="btn-clear-lb" onclick="clearLeaderboard()">🗑️ מחק את הטבלה</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL: EXIT CONFIRM
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal" id="modal-exit" onclick="closeModalBg(event,'modal-exit')">
+  <div class="modal-card exit-modal-card" style="max-width:400px">
+    <div class="exit-icon">💾</div>
+    <div class="exit-title">לצאת מהמשחק?</div>
+    <div class="exit-sub">
+      ההתקדמות שלכם תישמר אוטומטית.<br>
+      תוכלו להמשיך מאותה שאלה בחזרה לדף הבית.
+    </div>
+    <div class="exit-btns">
+      <button class="btn-exit-cancel" onclick="closeModal('modal-exit')">← המשיכו לשחק</button>
+      <button class="btn-exit-confirm" onclick="exitAndSave()">💾 שמור וצא</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     QUESTION SCREEN
+     ══════════════════════════════════════════════════════════ -->
+<div id="screen-question" class="screen">
+
+  <div class="qhdr">
+    <div class="hd-l">
+      <button class="btn-exit-game" onclick="openModal('modal-exit')">✕ יציאה</button>
+      <div class="score-box" id="scorebox">
+        <div class="sv" id="sval">0</div>
+        <div class="sl">נקודות</div>
+      </div>
+    </div>
+
+    <div class="hd-c">
+      <div class="qctr">שאלה <b id="qnum">1</b> מתוך <b id="qtot">33</b></div>
+    </div>
+
+    <div class="hd-r">
+      <button class="hbtn" id="hintbtn" onclick="useHint()">
+        💡 רמז <span class="hbadge" id="hcnt">3</span>
+      </button>
+      <div class="tring green" id="tring">
+        <svg viewBox="0 0 50 50">
+          <circle class="t-bg" cx="25" cy="25" r="22"/>
+          <circle class="t-arc" cx="25" cy="25" r="22" id="tarc"/>
+        </svg>
+        <div class="t-val" id="tval">45</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="garea">
+    <div class="imgpanel img-corners">
+      <div class="loading-spin" id="qload">⏳</div>
+      <img id="qimg" src="" alt="שאלה"
+           onload="el('qload').classList.add('gone')"
+           onerror="el('qload').textContent='🖼️'">
+      <div class="img-caption">📸 איפה בוצע הצילום?</div>
+    </div>
+    <div class="mappanel">
+      <div id="q-map"></div>
+      <div class="map-tip" id="mtip">📍 לחצו על המפה לסימון הניחוש</div>
+    </div>
+  </div>
+
+  <div class="qftr">
+    <div class="gstatus" id="gstatus">⭕ &nbsp;טרם סומן מיקום</div>
+    <button class="btn-confirm" id="cbtn" onclick="submitGuess()">✅ &nbsp;זה המיקום שלי!</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     REVEAL SCREEN
+     ══════════════════════════════════════════════════════════ -->
+<div id="screen-reveal" class="screen">
+  <div class="rev-inner">
+
+    <div class="rev-banner">
+      <div class="rpop miss" id="rpop">+0</div>
+      <div class="rverdict" id="rverdict">כל הכבוד!</div>
+      <div class="rdist" id="rdist">המרחק: —</div>
+    </div>
+
+    <div class="rev-imgs">
+      <div class="rcard">
+        <img id="rqimg" src="" alt="">
+        <div class="rlbl q">📷 השאלה</div>
+      </div>
+      <div class="rcard">
+        <div class="a-cover" id="acover">🔍</div>
+        <img id="raimg" src="" alt="">
+        <div class="rlbl a">✅ התשובה</div>
+      </div>
+    </div>
+
+    <div id="r-map"></div>
+
+    <div class="dbar-wrap">
+      <div class="dbar-lbl">
+        <span>0 מ׳ (מושלם)</span>
+        <span id="dbarmid" style="color:var(--white);font-weight:600">—</span>
+        <span>1,000+ מ׳</span>
+      </div>
+      <div class="dbar-track">
+        <div class="dbar-fill great" id="dbar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="rev-ftr">
+      <div class="prog-wrap">
+        <div class="prog-row">
+          <span>התקדמות</span>
+          <span id="prgtxt">1/33</span>
+        </div>
+        <div class="prog-track">
+          <div class="prog-fill" id="prgfill" style="width:0%"></div>
+        </div>
+      </div>
+      <button class="btn-next" id="nxtbtn" onclick="nextQ()">הבא ←</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     FINAL SCREEN
+     ══════════════════════════════════════════════════════════ -->
+<div id="screen-final" class="screen">
+  <div class="final-card">
+    <span class="ftrophy" id="ftrophy">🏆</span>
+    <div class="fname" id="fname">שחקן</div>
+    <div class="fscore" id="fscore">0</div>
+    <div class="fmax">מתוך 33,000 נקודות</div>
+    <div class="fstars" id="fstars">⭐⭐⭐</div>
+    <div class="frank" id="frank">מכיר/ה את המושב!</div>
+
+    <div class="fstats">
+      <div class="fstat"><div class="sv" id="stbest">—</div><div class="sl">שיא שאלה</div></div>
+      <div class="fstat"><div class="sv" id="stavg">—</div><div class="sl">מרחק ממוצע</div></div>
+      <div class="fstat"><div class="sv" id="stperf">0</div><div class="sl">פגיעות &lt;50מ׳</div></div>
+    </div>
+
+    <div class="final-btns">
+      <button class="btn-home" onclick="goHome()">🏠 דף הבית</button>
+      <button class="btn-restart" onclick="playAgain()">🔄 שחקו שוב!</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ══════════════════════════════════════════════════════════ -->
+<script>
+/* ─── Data ──────────────────────────────────────────────── */
+const RAW = [
+  {id:1,  lat:31.629758, lng:34.670183},{id:2,  lat:31.628714, lng:34.671294},
+  {id:3,  lat:31.629864, lng:34.672546},{id:4,  lat:31.628836, lng:34.674925},
+  {id:5,  lat:31.627934, lng:34.674226},{id:6,  lat:31.625210, lng:34.674782},
+  {id:7,  lat:31.625328, lng:34.674748},{id:8,  lat:31.627257, lng:34.671479},
+  {id:9,  lat:31.628645, lng:34.669266},{id:10, lat:31.629188, lng:34.668584},
+  {id:11, lat:31.629151, lng:34.667985},{id:12, lat:31.627492, lng:34.666683},
+  {id:13, lat:31.625720, lng:34.666044},{id:14, lat:31.622853, lng:34.664171},
+  {id:15, lat:31.628268, lng:34.666934},{id:16, lat:31.629209, lng:34.667934},
+  {id:17, lat:31.631051, lng:34.669711},{id:18, lat:31.632291, lng:34.669045},
+  {id:19, lat:31.633172, lng:34.668078},{id:20, lat:31.634439, lng:34.665241},
+  {id:21, lat:31.634787, lng:34.664524},{id:22, lat:31.634593, lng:34.664887},
+  {id:23, lat:31.636565, lng:34.667554},{id:24, lat:31.636459, lng:34.665601},
+  {id:25, lat:31.635998, lng:34.665282},{id:26, lat:31.634525, lng:34.664608},
+  {id:27, lat:31.631584, lng:34.670566},{id:28, lat:31.631316, lng:34.670651},
+  {id:29, lat:31.631059, lng:34.670740},{id:30, lat:31.630663, lng:34.670749},
+  {id:31, lat:31.630235, lng:34.671100},{id:32, lat:31.630258, lng:34.671892},
+  {id:33, lat:31.630615, lng:34.671618},
+];
+
+const CENTER = [31.630, 34.669];
+const TMAX   = 45;
+const MPQMAX = 1000;
+const TQ     = RAW.length; // 33
+const CIRC   = 2 * Math.PI * 22;
+const LS_SAVE= 'kokhav_saved_game';
+const LS_LB  = 'kokhav_leaderboard';
+
+/* ─── State ─────────────────────────────────────────────── */
+let G = {
+  qs:[], idx:0, total:0, scores:[], dists:[],
+  hints:3, name:'',
+  tInt:null, tLeft:TMAX,
+  gLat:null, gLng:null, submitted:false,
+};
+
+/* ─── Maps ──────────────────────────────────────────────── */
+let qMap=null, rMap=null, gMark=null, hintGroup=null;
+
+const mkESRI = () => L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {attribution:'© Esri',maxZoom:20});
+const mkOSM = () => L.tileLayer(
+  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {attribution:'© OpenStreetMap',maxZoom:19});
+
+function buildQMap() {
+  if (qMap) { qMap.remove(); qMap=null; gMark=null; }
+  qMap = L.map('q-map', {center:CENTER, zoom:15, zoomControl:true});
+  const esri = mkESRI().addTo(qMap);
+  L.control.layers({'🛰️ לוויין':esri,'🗺️ מפה':mkOSM()}).addTo(qMap);
+  hintGroup = L.layerGroup().addTo(qMap);
+
+  qMap.on('click', e => {
+    if (G.submitted) return;
+    G.gLat=e.latlng.lat; G.gLng=e.latlng.lng;
+    if (gMark) gMark.setLatLng(e.latlng);
+    else gMark = L.marker(e.latlng, {icon:blueIcon()}).addTo(qMap);
+    el('mtip').classList.add('hidden');
+    el('gstatus').innerHTML='📍 &nbsp;מיקום סומן!';
+    el('gstatus').className='gstatus placed';
+    addRipple(e.containerPoint);
+  });
+}
+
+function buildRMap() {
+  if (rMap) { rMap.remove(); rMap=null; }
+  rMap = L.map('r-map', {center:CENTER, zoom:15, zoomControl:false});
+  mkESRI().addTo(rMap);
+}
+
+const blueIcon  = () => L.divIcon({className:'',
+  html:`<div style="width:22px;height:22px;background:#3498db;border:3px solid #fff;border-radius:50%;box-shadow:0 3px 12px rgba(0,0,0,.7)"></div>`,
+  iconSize:[22,22],iconAnchor:[11,11]});
+
+const pulseIcon = () => L.divIcon({className:'',
+  html:`<div style="position:relative;width:28px;height:28px"><div style="position:absolute;inset:0;background:rgba(39,174,96,.35);border-radius:50%;animation:ping 1.2s ease infinite"></div><div style="position:absolute;inset:4px;background:#27ae60;border:2px solid #fff;border-radius:50%"></div></div>`,
+  iconSize:[28,28],iconAnchor:[14,14]});
+
+function addRipple(pt) {
+  const mp=el('q-map');
+  const r=document.createElement('div');
+  r.className='map-ripple';
+  r.style.cssText=`left:${pt.x}px;top:${pt.y}px`;
+  mp.appendChild(r);
+  r.addEventListener('animationend',()=>r.remove());
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SCORING (strict distance-based)
+   Distance decay: steep exponential for local scale
+   0m=1000, 100m≈750, 300m≈350, 700m≈50, 1500m≈0
+   ═══════════════════════════════════════════════════════════ */
+function calcScore(dist) {
+  if (!isFinite(dist)) return 0;
+  if (dist <  25) return 1000;
+  if (dist < 100) return Math.round(1000 - (dist-25)/75 * 260);   // 1000→740
+  if (dist < 300) return Math.round(740  - (dist-100)/200 * 400); // 740→340
+  if (dist < 700) return Math.round(340  - (dist-300)/400 * 300); // 340→40
+  if (dist < 1500)return Math.round(40   - (dist-700)/800 * 40);  // 40→0
+  return 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LOCALSTORAGE
+   ═══════════════════════════════════════════════════════════ */
+function saveGame() {
+  localStorage.setItem(LS_SAVE, JSON.stringify({
+    qs: G.qs, idx: G.idx, total: G.total,
+    scores: G.scores, dists: G.dists,
+    hints: G.hints, name: G.name,
+    savedAt: new Date().toLocaleDateString('he-IL')
+  }));
+}
+
+function loadSavedGame() {
+  try { return JSON.parse(localStorage.getItem(LS_SAVE)); }
+  catch(e) { return null; }
+}
+
+function clearSavedGame() {
+  localStorage.removeItem(LS_SAVE);
+}
+
+function getLeaderboard() {
+  try { return JSON.parse(localStorage.getItem(LS_LB)) || []; }
+  catch(e) { return []; }
+}
+
+function addToLeaderboard(name, score, date) {
+  const lb = getLeaderboard();
+  lb.push({ name, score, date });
+  lb.sort((a,b) => b.score - a.score);
+  localStorage.setItem(LS_LB, JSON.stringify(lb));
+}
+
+function clearLeaderboard() {
+  if (confirm('האם אתה בטוח שתרצה למחוק את כל הטבלה?')) {
+    localStorage.removeItem(LS_LB);
+    renderLeaderboardModal();
+    renderTop3();
+    toast('🗑️ הטבלה נמחקה');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HOME SCREEN
+   ═══════════════════════════════════════════════════════════ */
+function initHome() {
+  renderTop3();
+  // Check for saved game
+  const saved = loadSavedGame();
+  if (saved && saved.idx < TQ && saved.idx > 0) {
+    el('cont-wrap').style.display = 'block';
+    el('cont-info').textContent =
+      `${saved.name} • שאלה ${saved.idx+1}/${TQ} • ${saved.total.toLocaleString()} נק׳`;
+    // Pre-fill name
+    if (el('hpname').value === '') el('hpname').value = saved.name;
+  } else {
+    el('cont-wrap').style.display = 'none';
+  }
+}
+
+function renderTop3() {
+  const lb   = getLeaderboard();
+  const wrap = el('top3-list');
+  if (!lb.length) {
+    wrap.innerHTML = '<div class="top3-empty">עדיין אין שחקנים — היו הראשונים!</div>';
+    return;
+  }
+  const medals   = ['🥇','🥈','🥉'];
+  const classes  = ['gold','silver','bronze'];
+  wrap.innerHTML = lb.slice(0,3).map((e,i) => `
+    <div class="top3-item ${classes[i]||''}">
+      <span class="top3-medal">${medals[i]||'🏅'}</span>
+      <span class="top3-name">${esc(e.name)}</span>
+      <span class="top3-pct">${((e.score/(TQ*MPQMAX))*100).toFixed(0)}%</span>
+      <span class="top3-score">${e.score.toLocaleString()}</span>
+    </div>`).join('');
+}
+
+function renderLeaderboardModal() {
+  const lb   = getLeaderboard();
+  const wrap = el('lb-table-wrap');
+  if (!lb.length) {
+    wrap.innerHTML = '<div class="lb-empty">🎮 עדיין אין שחקנים בטבלה.<br>היו הראשונים לשחק!</div>';
+    return;
+  }
+  const medals = ['🥇','🥈','🥉'];
+  wrap.innerHTML = `<table class="lb-table">
+    <tr><th>#</th><th>שם</th><th>ניקוד</th><th>%</th><th>תאריך</th></tr>
+    ${lb.map((e,i)=>`<tr>
+      <td class="lb-rank ${i===0?'r1':i===1?'r2':i===2?'r3':''}">${medals[i]||i+1}</td>
+      <td>${esc(e.name)}</td>
+      <td style="color:var(--gold);font-weight:800">${e.score.toLocaleString()}</td>
+      <td style="color:var(--muted)">${((e.score/(TQ*MPQMAX))*100).toFixed(1)}%</td>
+      <td style="color:var(--muted);font-size:.8rem">${e.date||''}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GAME FLOW
+   ═══════════════════════════════════════════════════════════ */
+function newGame() {
+  const name = el('hpname').value.trim() || 'שחקן אנונימי';
+  const saved = loadSavedGame();
+  if (saved && saved.idx > 0) {
+    if (!confirm(`יש משחק שמור של ${saved.name} בשאלה ${saved.idx+1}. להתחיל משחק חדש?`)) return;
+  }
+  clearSavedGame();
+  G = {
+    qs: shuffle([...RAW]), idx:0, total:0, scores:[], dists:[],
+    hints:3, name,
+    tInt:null, tLeft:TMAX,
+    gLat:null, gLng:null, submitted:false,
+  };
+  showScreen('screen-question');
+  setTimeout(() => { buildQMap(); loadQ(0); }, 130);
+}
+
+function continueGame() {
+  const saved = loadSavedGame();
+  if (!saved) return;
+  G = {
+    qs:     saved.qs,
+    idx:    saved.idx,
+    total:  saved.total,
+    scores: saved.scores,
+    dists:  saved.dists,
+    hints:  saved.hints,
+    name:   saved.name,
+    tInt:null, tLeft:TMAX,
+    gLat:null, gLng:null, submitted:false,
+  };
+  showScreen('screen-question');
+  setTimeout(() => { buildQMap(); loadQ(G.idx); }, 130);
+}
+
+function exitAndSave() {
+  saveGame();
+  closeModal('modal-exit');
+  clearInterval(G.tInt);
+  showScreen('screen-home');
+  initHome();
+  toast('💾 המשחק נשמר!');
+}
+
+function loadQ(idx) {
+  const q = G.qs[idx];
+  G.gLat=null; G.gLng=null; G.submitted=false; gMark=null;
+  el('qnum').textContent = idx+1;
+  el('qtot').textContent = TQ;
+  el('hcnt').textContent = G.hints;
+  el('hintbtn').disabled = !G.hints;
+  el('mtip').classList.remove('hidden');
+  el('gstatus').innerHTML='⭕ &nbsp;טרם סומן מיקום';
+  el('gstatus').className='gstatus';
+  el('sval').textContent = G.total.toLocaleString();
+
+  el('qload').classList.remove('gone');
+  el('qimg').src = `Q${q.id}.jpg`;
+  if (idx+1 < TQ) (new Image()).src = `Q${G.qs[idx+1].id}.jpg`;
+
+  if (qMap) {
+    qMap.setView(CENTER, 15);
+    hintGroup.clearLayers();
+    qMap.eachLayer(l => { if (l instanceof L.Marker) qMap.removeLayer(l); });
+  }
+  startTimer();
+}
+
+/* ─── Timer ─────────────────────────────────────────────── */
+function startTimer() {
+  clearInterval(G.tInt);
+  G.tLeft = TMAX;
+  updateTimer(TMAX);
+  G.tInt = setInterval(() => {
+    G.tLeft--;
+    updateTimer(G.tLeft);
+    if (G.tLeft <= 0) { clearInterval(G.tInt); submitGuess(true); }
+  }, 1000);
+}
+
+function updateTimer(t) {
+  const off = CIRC * (1 - t/TMAX);
+  const arc = el('tarc');
+  arc.style.strokeDasharray  = CIRC;
+  arc.style.strokeDashoffset = off;
+  el('tval').textContent = t;
+  el('tring').className = 'tring ' + (t>20?'green':t>10?'yellow':'red');
+}
+
+/* ─── Hint ──────────────────────────────────────────────── */
+function useHint() {
+  if (!G.hints||G.submitted) return;
+  G.hints--;
+  el('hcnt').textContent = G.hints;
+  el('hintbtn').disabled = !G.hints;
+  const q=G.qs[G.idx], noise=0.0006;
+  const hLat=q.lat+(Math.random()-.5)*noise;
+  const hLng=q.lng+(Math.random()-.5)*noise;
+  hintGroup.addLayer(L.circle([hLat,hLng],{radius:160,color:'rgba(255,180,0,.75)',fillColor:'rgba(255,165,0,.1)',weight:2.5}));
+  qMap.flyTo([hLat,hLng],16,{duration:1.4});
+  playSound('hint');
+  toast('💡 המיקום נמצא בתוך העיגול הכתום!');
+}
+
+/* ─── Submit ────────────────────────────────────────────── */
+function submitGuess(auto=false) {
+  if (G.submitted) return;
+  G.submitted=true;
+  clearInterval(G.tInt);
+  const q=G.qs[G.idx];
+  const dist=G.gLat!==null ? haversine(G.gLat,G.gLng,q.lat,q.lng) : Infinity;
+  const sc=calcScore(dist);
+  G.total+=sc;
+  G.scores.push(sc);
+  G.dists.push(isFinite(dist)?Math.round(dist):99999);
+  if(auto&&G.gLat===null) toast('⏰ הזמן נגמר!');
+  el('sval').textContent = G.total.toLocaleString();
+  el('scorebox').classList.add('bump');
+  setTimeout(()=>el('scorebox').classList.remove('bump'),350);
+  if(sc>0) playSound(sc>=750?'great':'ok'); else playSound('miss');
+
+  // Auto-save progress
+  saveGame();
+
+  setTimeout(()=>showReveal(q,dist,sc),400);
+}
+
+/* ─── Reveal ────────────────────────────────────────────── */
+function showReveal(q,dist,sc) {
+  el('rqimg').src=`Q${q.id}.jpg`;
+  el('raimg').src=`A${q.id}.jpg`;
+  const acover=el('acover');
+  acover.classList.remove('reveal');
+  setTimeout(()=>acover.classList.add('reveal'),450);
+
+  const pop=el('rpop');
+  pop.textContent = sc>0?`+${sc.toLocaleString()}`:'0';
+  pop.className='rpop '+(sc>=750?'great':sc>=250?'good':'miss');
+
+  const v={
+    great:['🎯 פגיעה מושלמת!','🌟 מדהים!','🏆 מדויק בטירוף!','🔥 וואו! על המטרה!'],
+    good: ['👍 לא רע!','😊 קרוב מאוד!','🎉 כמעט שם!','💪 ניחוש טוב!'],
+    ok:   ['😅 ניסיון לא רע…','🤔 כמעט!','👋 לפחות ניחשתם!'],
+    miss: ['😬 הפעם לא הלך…','⏰ הזמן נגמר…','🙈 אוי אוי…'],
+  };
+  const cat=sc>=750?'great':sc>=250?'good':!isFinite(dist)?'miss':'ok';
+  el('rverdict').textContent=rnd(v[cat]);
+
+  const dTxt=!isFinite(dist)?'לא ניחשתם'
+    :dist<1000?`${Math.round(dist)} מ׳`:`${(dist/1000).toFixed(2)} ק"מ`;
+  el('rdist').textContent=`מרחק מהמיקום האמיתי: ${dTxt}`;
+
+  const pct=!isFinite(dist)?100:Math.min(100,dist/10);
+  const dbar=el('dbar');
+  dbar.style.width='0%';
+  dbar.className='dbar-fill '+(sc>=750?'great':sc>=250?'good':'miss');
+  setTimeout(()=>dbar.style.width=pct+'%',110);
+  el('dbarmid').textContent=dTxt;
+
+  const done=G.idx+1;
+  el('prgtxt').textContent=`${done}/${TQ}`;
+  setTimeout(()=>el('prgfill').style.width=(done/TQ*100)+'%',200);
+  el('nxtbtn').textContent=done>=TQ?'🏁 לתוצאות →':'הבא ←';
+
+  showScreen('screen-reveal');
+
+  setTimeout(()=>{
+    buildRMap();
+    const realLL=[q.lat,q.lng];
+    L.marker(realLL,{icon:pulseIcon()})
+      .bindPopup('<b style="font-family:Heebo,sans-serif">📍 המיקום האמיתי</b>',{direction:'rtl'})
+      .addTo(rMap);
+    let bounds=L.latLngBounds([realLL]);
+    if(G.gLat!==null){
+      const guessLL=[G.gLat,G.gLng];
+      L.marker(guessLL,{icon:blueIcon()})
+        .bindPopup('<b style="font-family:Heebo,sans-serif">🎯 הניחוש שלכם</b>',{direction:'rtl'})
+        .addTo(rMap);
+      L.polyline([guessLL,realLL],{color:'rgba(255,165,0,.85)',weight:3,dashArray:'9,7'}).addTo(rMap);
+      const mid=[(guessLL[0]+realLL[0])/2,(guessLL[1]+realLL[1])/2];
+      L.marker(mid,{icon:L.divIcon({className:'',
+        html:`<div style="background:rgba(0,0,0,.82);color:#FFD700;padding:3px 10px;border-radius:100px;font-size:12px;font-weight:700;white-space:nowrap;font-family:Heebo,sans-serif">${dTxt}</div>`,
+        iconAnchor:[0,0]})}).addTo(rMap);
+      bounds.extend(guessLL);
+    }
+    rMap.fitBounds(bounds,{padding:[50,50],maxZoom:18});
+    rMap.invalidateSize();
+  },280);
+
+  if(sc>=750) spawnParticles(sc);
+  if(sc>=900) confetti();
+}
+
+/* ─── Next / Final ──────────────────────────────────────── */
+function nextQ() {
+  if(G.idx+1>=TQ){showFinal();return;}
+  G.idx++;
+  showScreen('screen-question');
+  setTimeout(()=>{
+    if(qMap){
+      qMap.setView(CENTER,15);
+      hintGroup.clearLayers();
+      qMap.eachLayer(l=>{if(l instanceof L.Marker)qMap.removeLayer(l);});
+    }
+    gMark=null;
+    loadQ(G.idx);
+  },130);
+}
+
+function showFinal() {
+  // Save to leaderboard and clear in-progress
+  const date=new Date().toLocaleDateString('he-IL');
+  addToLeaderboard(G.name, G.total, date);
+  clearSavedGame();
+
+  showScreen('screen-final');
+  el('fname').textContent=G.name;
+  animNum('fscore',0,G.total,1700);
+
+  const pct=G.total/(TQ*MPQMAX);
+  const stars=pct>=.9?5:pct>=.7?4:pct>=.5?3:pct>=.3?2:1;
+  el('fstars').textContent='⭐'.repeat(stars)+'☆'.repeat(5-stars);
+  el('ftrophy').textContent=['','👏','🥉','🥈','🥇','🏆'][stars];
+  const ranks={5:'🌟 מומחה מושב כוכב מיכאל!',4:'🎯 מכיר/ה את המושב מצוין!',3:'👍 מכיר/ה את המושב לא רע!',2:'😊 יש עוד מה ללמוד!',1:'🚶 כדאי לצאת לסיור!'};
+  el('frank').textContent=ranks[stars];
+
+  const vd=G.dists.filter(d=>d<99999);
+  const avg=vd.length?Math.round(vd.reduce((a,b)=>a+b,0)/vd.length):0;
+  el('stbest').textContent=Math.max(...G.scores,0).toLocaleString();
+  el('stavg').textContent=avg<1000?`${avg}מ׳`:`${(avg/1000).toFixed(1)}ק"מ`;
+  el('stperf').textContent=G.scores.filter(s=>s>=900).length;
+
+  confetti(); confetti();
+}
+
+function goHome() {
+  showScreen('screen-home');
+  initHome();
+}
+function playAgain() {
+  const name=G.name||el('hpname').value.trim()||'שחקן אנונימי';
+  G={qs:shuffle([...RAW]),idx:0,total:0,scores:[],dists:[],hints:3,name,tInt:null,tLeft:TMAX,gLat:null,gLng:null,submitted:false};
+  showScreen('screen-question');
+  setTimeout(()=>{buildQMap();loadQ(0);},130);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════ */
+const el=id=>document.getElementById(id);
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  el(id).classList.add('active');
+}
+
+function openModal(id){
+  if(id==='modal-leaderboard') renderLeaderboardModal();
+  el(id).classList.add('open');
+}
+function closeModal(id){ el(id).classList.remove('open'); }
+function closeModalBg(e,id){ if(e.target===el(id)) closeModal(id); }
+
+function haversine(lat1,lng1,lat2,lng2){
+  const R=6371000,r=Math.PI/180;
+  const dl=(lat2-lat1)*r,dg=(lng2-lng1)*r;
+  const a=Math.sin(dl/2)**2+Math.cos(lat1*r)*Math.cos(lat2*r)*Math.sin(dg/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){const j=0|Math.random()*(i+1);[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+const rnd=a=>a[0|Math.random()*a.length];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function animNum(id,from,to,ms){
+  const e=el(id);const t0=performance.now();
+  (function step(now){
+    const p=Math.min((now-t0)/ms,1);
+    const ease=p<.5?2*p*p:-1+(4-2*p)*p;
+    e.textContent=Math.round(from+(to-from)*ease).toLocaleString();
+    if(p<1) requestAnimationFrame(step);
+  })(performance.now());
+}
+
+function toast(msg){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t=document.createElement('div');
+  t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.transition='opacity .4s';t.style.opacity='0';setTimeout(()=>t.remove(),400);},2700);
+}
+
+function confetti(){
+  const cols=['#FFD700','#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','#ff9ff3','#00b894'];
+  for(let i=0;i<100;i++){
+    const d=document.createElement('div');d.className='cf';
+    const sz=4+Math.random()*9;
+    d.style.cssText=`left:${Math.random()*100}vw;top:-14px;width:${sz}px;height:${sz}px;background:${cols[0|Math.random()*cols.length]};border-radius:${Math.random()>.5?'50%':'3px'};animation-duration:${1.5+Math.random()*2.4}s;animation-delay:${Math.random()*.7}s`;
+    document.body.appendChild(d);
+    d.addEventListener('animationend',()=>d.remove());
+  }
+}
+
+function spawnParticles(sc){
+  const box=el('rpop').getBoundingClientRect();
+  const cx=box.left+box.width/2,cy=box.top+box.height/2;
+  for(let i=0;i<6;i++){
+    const p=document.createElement('div');p.className='sparticle';
+    p.textContent='+'+Math.round(sc/6);
+    p.style.cssText=`left:${cx+(Math.random()-.5)*80}px;top:${cy}px;animation-delay:${i*.1}s;color:${i%2?'#ffd045':'#fff'}`;
+    document.body.appendChild(p);
+    p.addEventListener('animationend',()=>p.remove());
+  }
+}
+
+function toggleFS(){
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
+}
+
+/* ─── Audio ─────────────────────────────────────────────── */
+let _ac=null;
+function getAC(){return _ac||(_ac=new(window.AudioContext||window.webkitAudioContext)());}
+function playSound(type){
+  try{
+    const ac=getAC(),osc=ac.createOscillator(),g=ac.createGain();
+    osc.connect(g);g.connect(ac.destination);
+    const t=ac.currentTime;
+    if(type==='great'){
+      osc.frequency.setValueAtTime(523,t);osc.frequency.setValueAtTime(659,t+.12);
+      osc.frequency.setValueAtTime(784,t+.24);osc.frequency.setValueAtTime(1047,t+.36);
+      g.gain.setValueAtTime(.2,t);g.gain.exponentialRampToValueAtTime(.001,t+.7);
+      osc.start(t);osc.stop(t+.7);
+    }else if(type==='ok'){
+      osc.frequency.setValueAtTime(440,t);osc.frequency.setValueAtTime(523,t+.15);
+      g.gain.setValueAtTime(.15,t);g.gain.exponentialRampToValueAtTime(.001,t+.4);
+      osc.start(t);osc.stop(t+.4);
+    }else if(type==='miss'){
+      osc.type='sawtooth';osc.frequency.setValueAtTime(250,t);osc.frequency.exponentialRampToValueAtTime(100,t+.4);
+      g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.45);
+      osc.start(t);osc.stop(t+.45);
+    }else if(type==='hint'){
+      osc.frequency.setValueAtTime(880,t);osc.frequency.setValueAtTime(660,t+.1);
+      g.gain.setValueAtTime(.1,t);g.gain.exponentialRampToValueAtTime(.001,t+.3);
+      osc.start(t);osc.stop(t+.3);
+    }
+  }catch(e){}
+}
+
+/* ─── Stars ─────────────────────────────────────────────── */
+(function(){
+  const sf=el('starfield');
+  for(let i=0;i<160;i++){
+    const s=document.createElement('div'),sz=Math.random()*2.2+.3;
+    s.className='star';
+    s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;width:${sz}px;height:${sz}px;opacity:${.1+Math.random()*.5};--d:${2+Math.random()*5}s;--delay:${Math.random()*4}s`;
+    sf.appendChild(s);
+  }
+})();
+
+/* ─── Keyboard ──────────────────────────────────────────── */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+    if(el('screen-reveal').classList.contains('active')) nextQ();
+    else if(el('screen-question').classList.contains('active')) submitGuess();
+  }
+  if(e.key.toLowerCase()==='h'&&el('screen-question').classList.contains('active')) useHint();
+  if(e.key==='Escape'){
+    document.querySelectorAll('.modal.open').forEach(m=>m.classList.remove('open'));
+  }
+  if(e.key==='F11'){e.preventDefault();toggleFS();}
+});
+
+el('hpname').addEventListener('keydown',e=>{if(e.key==='Enter') newGame();});
+
+/* ─── Init ──────────────────────────────────────────────── */
+initHome();
+</script>
+</body>
+</html>

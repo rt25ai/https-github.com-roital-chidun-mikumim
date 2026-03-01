@@ -1,0 +1,10 @@
+# Temp / lock files
+~$*
+*.tmp
+
+# Claude session data
+.claude/
+
+# OS
+Thumbs.db
+.DS_Store
