@@ -983,6 +983,7 @@ function newGame() {
     hints:3, name,
     tInt:null, tLeft:TMAX,
     gLat:null, gLng:null, submitted:false,
+    qHintsUsed:0, hintCostThisQ:0,
   };
   showScreen('screen-question');
   setTimeout(() => { buildQMap(); loadQ(0); }, 130);
@@ -1001,6 +1002,7 @@ function continueGame() {
     name:   saved.name,
     tInt:null, tLeft:TMAX,
     gLat:null, gLng:null, submitted:false,
+    qHintsUsed:0, hintCostThisQ:0,
   };
   showScreen('screen-question');
   setTimeout(() => { buildQMap(); loadQ(G.idx); }, 130);
@@ -1018,6 +1020,7 @@ function exitAndSave() {
 function loadQ(idx) {
   const q = G.qs[idx];
   G.gLat=null; G.gLng=null; G.submitted=false; gMark=null;
+  G.qHintsUsed=0; G.hintCostThisQ=0;
   el('qnum').textContent = idx+1;
   el('qtot').textContent = TQ;
   el('hcnt').textContent = G.hints;
@@ -1060,19 +1063,57 @@ function updateTimer(t) {
   el('tring').className = 'tring ' + (t>20?'green':t>10?'yellow':'red');
 }
 
-/* ─── Hint ──────────────────────────────────────────────── */
+/* ─── Hint types (3 different hints, each costs points) ─── */
+const HINT_TYPES = [
+  {
+    icon:'🧭', label:'כיוון', cost:100,
+    run(q) {
+      const dLat = q.lat - CENTER[0], dLng = q.lng - CENTER[1];
+      const angle = Math.atan2(dLng, dLat) * 180 / Math.PI;
+      const dirs = ['צפון','צפון-מזרח','מזרח','דרום-מזרח','דרום','דרום-מערב','מערב','צפון-מערב'];
+      return 'המיקום נמצא ב' + dirs[Math.round(((angle+360)%360)/45)%8] + ' של מרכז המושב';
+    }
+  },
+  {
+    icon:'📏', label:'מרחק', cost:150,
+    run(q) {
+      const d = haversine(CENTER[0], CENTER[1], q.lat, q.lng);
+      return 'המיקום נמצא כ-' + (Math.round(d/25)*25) + ' מטרים ממרכז המושב';
+    }
+  },
+  {
+    icon:'🎯', label:'עיגול', cost:200,
+    run(q) {
+      const n=0.0004, hLat=q.lat+(Math.random()-.5)*n, hLng=q.lng+(Math.random()-.5)*n;
+      hintGroup.addLayer(L.circle([hLat,hLng],{radius:110,color:'rgba(255,180,0,.9)',fillColor:'rgba(255,165,0,.15)',weight:2.5}));
+      qMap.flyTo([hLat,hLng],17,{duration:1.4});
+      return 'העיגול הכתום על המפה מסמן את האזור';
+    }
+  }
+];
+
 function useHint() {
-  if (!G.hints||G.submitted) return;
+  if (!G.hints || G.submitted) return;
+  const ht = HINT_TYPES[G.qHintsUsed];
+  if (!ht) return;
+  const msg = ht.run(G.qs[G.idx]);
   G.hints--;
+  G.qHintsUsed++;
+  G.hintCostThisQ += ht.cost;
   el('hcnt').textContent = G.hints;
   el('hintbtn').disabled = !G.hints;
-  const q=G.qs[G.idx], noise=0.0006;
-  const hLat=q.lat+(Math.random()-.5)*noise;
-  const hLng=q.lng+(Math.random()-.5)*noise;
-  hintGroup.addLayer(L.circle([hLat,hLng],{radius:160,color:'rgba(255,180,0,.75)',fillColor:'rgba(255,165,0,.1)',weight:2.5}));
-  qMap.flyTo([hLat,hLng],16,{duration:1.4});
   playSound('hint');
-  toast('💡 המיקום נמצא בתוך העיגול הכתום!');
+  hintToast(ht.icon, msg, ht.cost);
+}
+
+function hintToast(icon, description, cost) {
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.style.cssText = 'max-width:360px;line-height:1.6;padding:14px 22px;text-align:right';
+  t.innerHTML = `${icon} <b>רמז:</b> ${description}<br><span style="color:#ffd045;font-size:.82em">עלה לך -${cost} נקודות מהשאלה הנוכחית</span>`;
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.transition='opacity .5s';t.style.opacity='0';setTimeout(()=>t.remove(),500);}, 5000);
 }
 
 /* ─── Submit ────────────────────────────────────────────── */
@@ -1082,7 +1123,7 @@ function submitGuess(auto=false) {
   clearInterval(G.tInt);
   const q=G.qs[G.idx];
   const dist=G.gLat!==null ? haversine(G.gLat,G.gLng,q.lat,q.lng) : Infinity;
-  const sc=calcScore(dist);
+  const sc=Math.max(0, calcScore(dist) - G.hintCostThisQ);
   G.total+=sc;
   G.scores.push(sc);
   G.dists.push(isFinite(dist)?Math.round(dist):99999);
@@ -1212,7 +1253,7 @@ function goHome() {
 }
 function playAgain() {
   const name=G.name||el('hpname').value.trim()||'שחקן אנונימי';
-  G={qs:shuffle([...RAW]),idx:0,total:0,scores:[],dists:[],hints:3,name,tInt:null,tLeft:TMAX,gLat:null,gLng:null,submitted:false};
+  G={qs:shuffle([...RAW]),idx:0,total:0,scores:[],dists:[],hints:3,name,tInt:null,tLeft:TMAX,gLat:null,gLng:null,submitted:false,qHintsUsed:0,hintCostThisQ:0};
   showScreen('screen-question');
   setTimeout(()=>{buildQMap();loadQ(0);},130);
 }
