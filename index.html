@@ -307,12 +307,38 @@ img { display: block; }
 .lb-rank.r2 { color: #C0C0C0; }
 .lb-rank.r3 { color: #CD7F32; }
 .lb-empty { text-align: center; color: var(--muted); padding: 30px 20px; font-size: .95rem; }
-.btn-clear-lb {
-  display: block; margin: 16px auto 0; padding: 8px 20px; border-radius: 100px;
-  background: transparent; border: 1px solid rgba(231,76,60,.4); color: var(--red);
-  font-size: .82rem; transition: var(--t);
+/* Name-required shake */
+@keyframes shakeInput {
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-9px)}
+  40%{transform:translateX(9px)}
+  60%{transform:translateX(-6px)}
+  80%{transform:translateX(6px)}
 }
-.btn-clear-lb:hover { background: rgba(231,76,60,.1); }
+.input-shake { animation: shakeInput .42s ease; border-color: var(--red) !important; background: rgba(231,76,60,.08) !important; }
+.name-required-hint {
+  text-align:center; font-size:.8rem; color:var(--red); margin-top:5px;
+  animation: fadeIn .25s ease;
+}
+
+/* Leaderboard source badge */
+.lb-source-wrap { text-align:center; margin-bottom:10px; }
+.lb-source-badge {
+  display: inline-flex; align-items:center; gap:5px;
+  font-size:.75rem; padding:3px 11px; border-radius:100px;
+  border:1px solid; font-weight:600; letter-spacing:.3px;
+}
+.lb-source-badge.cloud  { color:#27ae60; border-color:rgba(39,174,96,.35); background:rgba(39,174,96,.08); }
+.lb-source-badge.local  { color:var(--muted); border-color:rgba(255,255,255,.12); background:transparent; }
+.lb-source-badge.loading { color:var(--muted); border-color:rgba(255,255,255,.1); background:transparent; }
+
+/* Admin delete (hidden, revealed by secret) */
+.btn-admin-lb {
+  display: none; margin: 14px auto 0; padding: 7px 18px; border-radius: 100px;
+  background: transparent; border: 1px solid rgba(231,76,60,.4); color: var(--red);
+  font-size: .8rem; transition: var(--t);
+}
+.btn-admin-lb:hover { background: rgba(231,76,60,.1); }
 
 /* ════════════════════════════════════════════════════════════
    EXIT CONFIRM MODAL
@@ -651,9 +677,10 @@ img { display: block; }
 <div class="modal" id="modal-leaderboard" onclick="closeModalBg(event,'modal-leaderboard')">
   <div class="modal-card">
     <button class="modal-close" onclick="closeModal('modal-leaderboard')">✕</button>
-    <div class="modal-title">🏆 טבלת כל השחקנים</div>
+    <div class="modal-title" id="lb-modal-title" onclick="lbTitleClick()">🏆 טבלת כל השחקנים</div>
+    <div class="lb-source-wrap"><span id="lb-source-badge" class="lb-source-badge loading">⏳ טוען...</span></div>
     <div id="lb-table-wrap"><!-- filled by JS --></div>
-    <button class="btn-clear-lb" onclick="clearLeaderboard()">🗑️ מחק את הטבלה</button>
+    <button class="btn-admin-lb" id="btn-admin-lb" onclick="adminClearLeaderboard()">🗑️ מחק טבלה (מנהל)</button>
   </div>
 </div>
 
@@ -936,46 +963,88 @@ function clearSavedGame() {
 const API_LB      = '/api/leaderboard';
 const GITHUB_RAW  = 'https://raw.githubusercontent.com/rt25ai/https-github.com-roital-chidun-mikumim/main/scores.json';
 
+// Tracks where the leaderboard data is currently coming from
+let G_lbSource = 'loading'; // 'server' | 'github' | 'local' | 'loading'
+
 async function getLeaderboard() {
-  // 1. Try local server API (used during live/local events)
+  // 1. Try local server API (live events on same WiFi)
   try {
-    const r = await fetch(API_LB);
-    if (r.ok) return await r.json();
+    const r = await fetch(API_LB, { signal: AbortSignal.timeout(2500) });
+    if (r.ok) { G_lbSource = 'server'; return await r.json(); }
   } catch(e) {}
-  // 2. Try GitHub raw (used when visiting via GitHub Pages / custom domain)
+  // 2. Try GitHub raw (GitHub Pages / custom domain visitors)
   try {
-    const r = await fetch(GITHUB_RAW + '?t=' + Date.now());
-    if (r.ok) return await r.json();
+    const r = await fetch(GITHUB_RAW + '?t=' + Date.now(), { signal: AbortSignal.timeout(4000) });
+    if (r.ok) { G_lbSource = 'github'; return await r.json(); }
   } catch(e) {}
-  // 3. Final fallback: localStorage
+  // 3. Final fallback: localStorage (offline / single device)
+  G_lbSource = 'local';
   try { return JSON.parse(localStorage.getItem(LS_LB)) || []; }
   catch(e) { return []; }
 }
 
-function addToLeaderboard(name, score, date) {
-  const entry = { name, score, date };
-  // Fire-and-forget POST to server; fallback to localStorage on error
-  fetch(API_LB, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(entry)
-  }).catch(() => {
-    try {
-      const lb = JSON.parse(localStorage.getItem(LS_LB)||'[]');
-      lb.push(entry);
-      lb.sort((a,b) => b.score - a.score);
-      localStorage.setItem(LS_LB, JSON.stringify(lb));
-    } catch(e) {}
-  });
+function updateLbSourceBadge() {
+  const badge = el('lb-source-badge');
+  if (!badge) return;
+  const map = {
+    server: { cls:'cloud',  text:'🟢 ענן - תוצאות משותפות לכולם' },
+    github: { cls:'cloud',  text:'☁️ גיטהאב - תוצאות מהאחרון שנשמר' },
+    local:  { cls:'local',  text:'💾 מקומי - תוצאות רק במכשיר זה' },
+    loading:{ cls:'loading',text:'⏳ טוען...' },
+  };
+  const s = map[G_lbSource] || map.loading;
+  badge.className = 'lb-source-badge ' + s.cls;
+  badge.textContent = s.text;
 }
 
-async function clearLeaderboard() {
-  if (!confirm('האם אתה בטוח שתרצה למחוק את כל הטבלה?')) return;
+async function addToLeaderboard(name, score, date) {
+  const entry = { name, score, date };
+  try {
+    const r = await fetch(API_LB, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry),
+      signal: AbortSignal.timeout(4000)
+    });
+    if (r.ok) {
+      toast('✅ הניקוד נשמר בשרת המשותף!');
+      return;
+    }
+  } catch(e) {}
+  // Fallback: save to localStorage
+  try {
+    const lb = JSON.parse(localStorage.getItem(LS_LB)||'[]');
+    lb.push(entry);
+    lb.sort((a,b) => b.score - a.score);
+    localStorage.setItem(LS_LB, JSON.stringify(lb));
+  } catch(e) {}
+  toast('💾 הניקוד נשמר במכשיר זה (שרת לא זמין)');
+}
+
+// Secret admin: click leaderboard title 7 times within 3 seconds
+let _lbClickCount = 0, _lbClickTimer = null;
+function lbTitleClick() {
+  _lbClickCount++;
+  clearTimeout(_lbClickTimer);
+  _lbClickTimer = setTimeout(() => { _lbClickCount = 0; }, 3000);
+  if (_lbClickCount >= 7) {
+    _lbClickCount = 0;
+    const pw = prompt('קוד מנהל:');
+    if (pw === 'kokhav7') {
+      el('btn-admin-lb').style.display = 'block';
+      toast('🔓 מצב מנהל הופעל');
+    }
+  }
+}
+
+async function adminClearLeaderboard() {
+  if (!confirm('למחוק את כל הטבלה? פעולה זו אינה הפיכה.')) return;
   try {
     await fetch(API_LB, { method: 'DELETE' });
   } catch(e) {
     localStorage.removeItem(LS_LB);
   }
+  el('btn-admin-lb').style.display = 'none';
   renderLeaderboardModal();
   renderTop3();
   toast('🗑️ הטבלה נמחקה');
@@ -1021,7 +1090,10 @@ async function renderTop3() {
 async function renderLeaderboardModal() {
   const wrap = el('lb-table-wrap');
   wrap.innerHTML = '<div class="lb-empty">⏳ טוען תוצאות...</div>';
+  G_lbSource = 'loading';
+  updateLbSourceBadge();
   const lb = await getLeaderboard();
+  updateLbSourceBadge();
   if (!lb.length) {
     wrap.innerHTML = '<div class="lb-empty">🎮 עדיין אין שחקנים בטבלה.<br>היו הראשונים לשחק!</div>';
     return;
@@ -1043,7 +1115,27 @@ async function renderLeaderboardModal() {
    GAME FLOW
    ═══════════════════════════════════════════════════════════ */
 function newGame() {
-  const name = el('hpname').value.trim() || 'שחקן אנונימי';
+  const inp  = el('hpname');
+  const name = inp.value.trim();
+  if (!name) {
+    inp.classList.remove('input-shake');
+    void inp.offsetWidth; // reflow to restart animation
+    inp.classList.add('input-shake');
+    inp.focus();
+    // Show hint text (remove it after 3s)
+    let hint = document.getElementById('name-hint');
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.id = 'name-hint';
+      hint.className = 'name-required-hint';
+      hint.textContent = '⚠️ יש להזין שם לפני תחילת המשחק';
+      inp.parentNode.insertBefore(hint, inp.nextSibling);
+    }
+    setTimeout(() => { hint && hint.remove(); }, 3000);
+    inp.addEventListener('animationend', () => inp.classList.remove('input-shake'), { once: true });
+    return;
+  }
+  document.getElementById('name-hint')?.remove();
   const saved = loadSavedGame();
   if (saved && saved.idx > 0) {
     if (!confirm(`יש משחק שמור של ${saved.name} בשאלה ${saved.idx+1}. להתחיל משחק חדש?`)) return;
@@ -1323,10 +1415,8 @@ function goHome() {
   initHome();
 }
 function playAgain() {
-  const name=G.name||el('hpname').value.trim()||'שחקן אנונימי';
-  G={qs:shuffle([...RAW]),idx:0,total:0,scores:[],dists:[],hints:3,name,tInt:null,tLeft:TMAX,gLat:null,gLng:null,submitted:false,qHintsUsed:0,hintCostThisQ:0};
-  showScreen('screen-question');
-  setTimeout(()=>{buildQMap();loadQ(0);},130);
+  // Always go home so player can confirm/change name
+  goHome();
 }
 
 /* ═══════════════════════════════════════════════════════════
