@@ -5,6 +5,9 @@
 # Claude session data
 .claude/
 
+# Leaderboard data (server-side, not committed)
+scores.json
+
 # OS
 Thumbs.db
 .DS_Store
