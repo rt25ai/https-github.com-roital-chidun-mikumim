@@ -996,24 +996,37 @@ function clearSavedGame() {
   localStorage.removeItem(LS_SAVE);
 }
 
-const API_LB      = '/api/leaderboard';
-const GITHUB_RAW  = 'https://raw.githubusercontent.com/rt25ai/https-github.com-roital-chidun-mikumim/main/scores.json';
+// ═══════════════════════════════════════════════════════════
+// CLOUD LEADERBOARD — Firebase Realtime Database (FREE)
+// Setup: https://console.firebase.google.com → Realtime Database
+// Paste your DB URL below, e.g.:
+//   'https://YOUR-PROJECT-default-rtdb.europe-west1.firebasedatabase.app/leaderboard.json'
+// ═══════════════════════════════════════════════════════════
+const FIREBASE_URL = ''; // ← הכנס כאן את כתובת ה-Firebase שלך
 
-// Tracks where the leaderboard data is currently coming from
-let G_lbSource = 'loading'; // 'server' | 'github' | 'local' | 'loading'
+const API_LB = '/api/leaderboard'; // שרת מקומי (גיבוי לאירועים ב-WiFi)
+
+let G_lbSource = 'loading';
 
 async function getLeaderboard() {
-  // 1. Try local server API (live events on same WiFi)
+  // 1. Firebase (always-on cloud) — if configured
+  if (FIREBASE_URL) {
+    try {
+      const r = await fetch(FIREBASE_URL, { signal: AbortSignal.timeout(5000) });
+      if (r.ok) {
+        const data = await r.json();
+        G_lbSource = 'server';
+        if (!data) return [];
+        return Object.values(data).sort((a, b) => b.score - a.score);
+      }
+    } catch(e) {}
+  }
+  // 2. Local server API (events on same WiFi)
   try {
-    const r = await fetch(API_LB, { signal: AbortSignal.timeout(2500) });
+    const r = await fetch(API_LB, { signal: AbortSignal.timeout(2000) });
     if (r.ok) { G_lbSource = 'server'; return await r.json(); }
   } catch(e) {}
-  // 2. Try GitHub raw (GitHub Pages / custom domain visitors)
-  try {
-    const r = await fetch(GITHUB_RAW + '?t=' + Date.now(), { signal: AbortSignal.timeout(4000) });
-    if (r.ok) { G_lbSource = 'github'; return await r.json(); }
-  } catch(e) {}
-  // 3. Final fallback: localStorage (offline / single device)
+  // 3. localStorage fallback
   G_lbSource = 'local';
   try { return JSON.parse(localStorage.getItem(LS_LB)) || []; }
   catch(e) { return []; }
@@ -1023,10 +1036,9 @@ function updateLbSourceBadge() {
   const badge = el('lb-source-badge');
   if (!badge) return;
   const map = {
-    server: { cls:'cloud',  text:'🟢 ענן - תוצאות משותפות לכולם' },
-    github: { cls:'cloud',  text:'☁️ גיטהאב - תוצאות מהאחרון שנשמר' },
-    local:  { cls:'local',  text:'💾 מקומי - תוצאות רק במכשיר זה' },
-    loading:{ cls:'loading',text:'⏳ טוען...' },
+    server:  { cls:'cloud',  text:'🟢 ענן - תוצאות משותפות לכולם' },
+    local:   { cls:'local',  text:'💾 מקומי - תוצאות רק במכשיר זה' },
+    loading: { cls:'loading',text:'⏳ טוען...' },
   };
   const s = map[G_lbSource] || map.loading;
   badge.className = 'lb-source-badge ' + s.cls;
@@ -1035,26 +1047,38 @@ function updateLbSourceBadge() {
 
 async function addToLeaderboard(name, score, date) {
   const entry = { name, score, date };
+  // 1. Try Firebase
+  if (FIREBASE_URL) {
+    try {
+      const r = await fetch(FIREBASE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
+        signal: AbortSignal.timeout(5000)
+      });
+      if (r.ok) { toast('✅ הניקוד נשמר בענן המשותף!'); return; }
+    } catch(e) {}
+    toast('⚠️ שגיאה בשמירה לענן - בדוק חיבור אינטרנט');
+    return;
+  }
+  // 2. Try local server
   try {
     const r = await fetch(API_LB, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(entry),
-      signal: AbortSignal.timeout(4000)
+      signal: AbortSignal.timeout(3000)
     });
-    if (r.ok) {
-      toast('✅ הניקוד נשמר בשרת המשותף!');
-      return;
-    }
+    if (r.ok) { toast('✅ הניקוד נשמר בשרת המשותף!'); return; }
   } catch(e) {}
-  // Fallback: save to localStorage
+  // 3. localStorage fallback
   try {
     const lb = JSON.parse(localStorage.getItem(LS_LB)||'[]');
     lb.push(entry);
     lb.sort((a,b) => b.score - a.score);
     localStorage.setItem(LS_LB, JSON.stringify(lb));
   } catch(e) {}
-  toast('💾 הניקוד נשמר במכשיר זה (שרת לא זמין)');
+  toast('💾 הניקוד נשמר מקומית (אין שרת זמין)');
 }
 
 // Secret admin: click leaderboard title 7 times within 3 seconds
@@ -1075,9 +1099,11 @@ function lbTitleClick() {
 
 async function adminClearLeaderboard() {
   if (!confirm('למחוק את כל הטבלה? פעולה זו אינה הפיכה.')) return;
-  try {
-    await fetch(API_LB, { method: 'DELETE' });
-  } catch(e) {
+  if (FIREBASE_URL) {
+    try { await fetch(FIREBASE_URL, { method: 'DELETE', signal: AbortSignal.timeout(5000) }); }
+    catch(e) {}
+  } else {
+    try { await fetch(API_LB, { method: 'DELETE' }); } catch(e) {}
     localStorage.removeItem(LS_LB);
   }
   el('btn-admin-lb').style.display = 'none';
