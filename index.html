@@ -267,6 +267,36 @@ img { display: block; }
 }
 .btn-lb-full:hover { background: rgba(255,208,69,.1); transform: translateY(-2px); }
 
+/* Footer slogan */
+.footer-slogan {
+  text-align: center;
+  font-size: .95rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  background: linear-gradient(100deg, #ffd045 0%, #00d4c8 55%, #ffd045 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shineSlogan 4s linear infinite;
+}
+.footer-slogan::before,
+.footer-slogan::after {
+  content: '';
+  display: inline-block;
+  vertical-align: middle;
+  width: 26px; height: 1px;
+  margin: 0 8px;
+  background: linear-gradient(90deg, transparent, rgba(255,208,69,.45));
+}
+.footer-slogan::after {
+  background: linear-gradient(90deg, rgba(0,212,200,.45), transparent);
+}
+@keyframes shineSlogan {
+  0%   { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
 /* Social links */
 .social-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .social-btn {
@@ -609,7 +639,8 @@ img { display: block; }
 
     <button class="btn-lb-full" onclick="openModal('modal-leaderboard')">🏅 טבלה מלאה של כל השחקנים</button>
 
-    <!-- Social -->
+    <!-- Footer slogan + Social -->
+    <div class="footer-slogan">רועי טל - AI פשוט בעולם חכם</div>
     <div class="social-row">
       <a href="https://www.rt-ai.co.il" target="_blank" class="social-btn web">🌐 rt-ai.co.il</a>
       <a href="https://www.instagram.com/roital_ai?igsh=bmVvY2RieWFhem4y" target="_blank" class="social-btn insta">📸 Instagram</a>
