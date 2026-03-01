@@ -885,6 +885,7 @@ const CENTER = [31.630, 34.669];
 const TMAX   = 45;
 const MPQMAX = 1000;
 const TQ     = RAW.length; // 33
+const _imgCache = []; // holds Image refs to prevent GC cancelling preloads
 const CIRC   = 2 * Math.PI * 22;
 const LS_SAVE= 'kokhav_saved_game';
 const LS_LB  = 'kokhav_leaderboard';
@@ -1151,6 +1152,14 @@ async function renderLeaderboardModal() {
 /* ═══════════════════════════════════════════════════════════
    GAME FLOW
    ═══════════════════════════════════════════════════════════ */
+function preloadAllImages() {
+  _imgCache.length = 0;
+  G.qs.forEach(q => {
+    const qi = new Image(); qi.src = `Q${q.id}.jpg`; _imgCache.push(qi);
+    const ai = new Image(); ai.src = `A${q.id}.jpg`; _imgCache.push(ai);
+  });
+}
+
 function newGame() {
   const inp  = el('hpname');
   const name = inp.value.trim();
@@ -1185,6 +1194,7 @@ function newGame() {
     gLat:null, gLng:null, submitted:false,
     qHintsUsed:0, hintCostThisQ:0,
   };
+  preloadAllImages();
   showScreen('screen-question');
   setTimeout(() => { buildQMap(); loadQ(0); }, 130);
 }
@@ -1204,6 +1214,7 @@ function continueGame() {
     gLat:null, gLng:null, submitted:false,
     qHintsUsed:0, hintCostThisQ:0,
   };
+  preloadAllImages();
   showScreen('screen-question');
   setTimeout(() => { buildQMap(); loadQ(G.idx); }, 130);
 }
@@ -1241,7 +1252,6 @@ function loadQ(idx) {
 
   el('qload').classList.remove('gone');
   el('qimg').src = `Q${q.id}.jpg`;
-  if (idx+1 < TQ) (new Image()).src = `Q${G.qs[idx+1].id}.jpg`;
 
   if (qMap) {
     qMap.setView(CENTER, 15);
