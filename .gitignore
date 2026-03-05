@@ -2,6 +2,9 @@
 ~$*
 *.tmp
 
+# Wrangler cache
+.wrangler/
+
 # Claude session data
 .claude/
 
