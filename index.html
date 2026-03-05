@@ -446,8 +446,8 @@ img { display: block; }
 /* Game area */
 .garea { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; overflow: hidden; }
 .imgpanel { position: relative; background: #000; overflow: hidden; }
-.imgpanel img { width: 100%; height: 100%; object-fit: cover; }
-.imgpanel .loading-spin { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #0a0f1a; font-size: 2rem; transition: opacity .4s; }
+.imgpanel img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.imgpanel .loading-spin { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #0a0f1a; font-size: 2rem; transition: opacity .4s; z-index: 1; }
 .imgpanel .loading-spin.gone { opacity: 0; pointer-events: none; }
 .img-corners::before,.img-corners::after { content:''; position:absolute; width:28px; height:28px; border-color:rgba(255,208,69,.55); border-style:solid; pointer-events:none; z-index:2; }
 .img-corners::before { top:10px; right:10px; border-width:2px 2px 0 0; border-radius:0 4px 0 0; }
@@ -762,7 +762,7 @@ img { display: block; }
   <div class="garea">
     <div class="imgpanel img-corners">
       <div class="loading-spin" id="qload">⏳</div>
-      <img id="qimg" src="" alt="שאלה"
+      <img id="qimg" alt="שאלה"
            onload="el('qload').classList.add('gone')"
            onerror="el('qload').textContent='🖼️'">
       <div class="img-caption">📸 איפה בוצע הצילום?</div>
